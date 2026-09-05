@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -266,6 +266,12 @@
           <button class="btn small" id="btnBoard" style="margin-top:8px">展开排行榜</button>
           <div id="boardPanel" style="display:none;margin-top:10px"></div>
         </div>
+        <div class="card" style="margin-top:14px">
+          <h3>历史存档 <span class="muted" style="font-size:12px">（单局总结页+历程）</span></h3>
+          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:10px">游戏结束后在总结页点击「保存本局存档」，可记录该角色的一生。最多保存50局，可查看详情、导出为JSON文件或删除。</p>
+          <button class="btn small" onclick="var p=document.getElementById('historyPanel');p.style.display=p.style.display==='none'?'block':'none';this.textContent=this.textContent==='展开存档'?'收起存档':'展开存档';if(p.style.display==='block')renderHistorySaves();">展开存档</button>
+          <div id="historyPanel" style="display:none;margin-top:10px"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -360,6 +366,7 @@
       <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
         <button class="btn primary" id="btnAgain">轮回重开</button>
         <button class="btn" id="btnLifeLog">查看本局历程</button>
+        <button class="btn" id="btnSaveArchive">保存本局存档</button>
         <button class="btn" id="btnBackStart">返回轮回殿</button>
       </div>
     </div>
@@ -733,9 +740,208 @@ function loadMeta(){
   META.atlas = META.atlas || {souls:{}, events:{}, endings:{}}; // DL_RS_4.33：图鉴收集（跨局持久化）
   META.records = META.records || {}; // DL_RS_4.99：跨局成就记录（成神/封号/冠军等，驱动收集称号）
   META.board = META.board || []; // DL_RS_4.114：轮回榜（本机生涯纪录，评分/战力/等级）
+  META.historySaves = META.historySaves || []; // DL_RS_4.177：历史存档（单局总结页+历程，玩家可查看/导出/删除）
 }
 function saveMeta(){
   try{ localStorage.setItem('dl_rs_meta_'+RULESET, JSON.stringify(META)); }catch(e){}
+}
+/* DL_RS_4.177：单局存档——保存总结页+本局历程到本地历史记录，玩家可在轮回殿查看/导出/删除 */
+function saveLifeArchive(){
+  try{
+    const g=G;
+    const archive = {
+      id: Date.now(),
+      saveTime: new Date().toLocaleString('zh-CN'),
+      name: g.name || '无名',
+      personality: g.personality || '',
+      gender: g.gender || '男',
+      soul: g.soul ? {name:g.soul.name, quality:g.soul.quality, xian:g.soul.xian} : null,
+      dual: g.dual ? {name:g.dual.name, quality:g.dual.quality} : null,
+      lv: Math.floor(g.lv),
+      age: g.age,
+      power: power(),
+      score: endScoreOf(),
+      endTitle: document.getElementById('endTitle') ? document.getElementById('endTitle').textContent : '',
+      godTitle: g.godTitle || '',
+      org: g.org || '',
+      spouse: g.spouse || '',
+      children: g.children || 0,
+      deathCause: g.deathCause || '寿终正寝',
+      achievements: [...new Set(g.achievements || [])],
+      rings: (g.rings||[]).map(r=>({year:r.year, name:r.name, skill:r.skill})),
+      bones: (g.bones||[]).map(b=>({grade:b.grade, slot:b.slot, skill:b.skill})),
+      attrs: {体质:Math.floor(g.a.体质),力量:Math.floor(g.a.力量),敏捷:Math.floor(g.a.敏捷),精神力:Math.floor(g.a.精神力),悟性:Math.floor(g.a.悟性),家境:Math.floor(g.a.家境),天命:Math.floor(g.a.天命)},
+      log: (g.log||[]).map(l=>({text:l.text, cls:l.cls, age:l.age}))
+    };
+    META.historySaves = META.historySaves || [];
+    META.historySaves.unshift(archive);
+    if(META.historySaves.length > 50) META.historySaves = META.historySaves.slice(0, 50);
+    saveMeta();
+    const btn = document.getElementById('btnSaveArchive');
+    if(btn){ btn.textContent = '已保存 ✓'; btn.disabled = true; setTimeout(()=>{btn.textContent='保存本局存档'; btn.disabled=false;}, 3000); }
+  }catch(e){
+    const btn = document.getElementById('btnSaveArchive');
+    if(btn){ btn.textContent = '保存失败'; setTimeout(()=>{btn.textContent='保存本局存档';}, 3000); }
+  }
+}
+function renderHistorySaves(){
+  const panel = document.getElementById('historyPanel');
+  if(!panel) return;
+  const saves = META.historySaves || [];
+  if(saves.length===0){ panel.innerHTML = '<div class="muted" style="padding:10px 0">暂无存档。游戏结束后在总结页点击「保存本局存档」即可记录。</div>'; return; }
+  let html = '<div style="max-height:300px;overflow:auto">';
+  saves.forEach((s, i)=>{
+    const qw = {fei:'废',pu:'普通',you:'优良',ding:'顶级',super:'超级',shen:'神级'}[s.soul ? s.soul.quality : ''] || (s.soul ? s.soul.quality : '');
+    html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">';
+    html += '<div><b>' + (s.name||'无名') + '</b> · ' + (s.soul?s.soul.name:'') + '（' + qw + '） · ' + s.lv + '级 · 评分' + s.score + '</div>';
+    html += '<div style="display:flex;gap:6px">';
+    html += '<button class="btn mini" onclick="viewArchive(' + i + ')">查看</button>';
+    html += '<button class="btn mini" onclick="exportArchive(' + i + ')">导出</button>';
+    html += '<button class="btn mini" style="color:var(--bad)" onclick="deleteArchive(' + i + ')">删除</button>';
+    html += '</div></div>';
+    html += '<div class="muted" style="font-size:11.5px;margin-top:4px">' + s.saveTime + ' · ' + (s.endTitle||'') + ' · 享年' + s.age + '岁</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  panel.innerHTML = html;
+}
+function viewArchive(index){
+  const s = (META.historySaves||[])[index];
+  if(!s) return;
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = (e)=>{ if(e.target===modal) modal.remove(); };
+  let html = '<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;max-width:700px;width:100%;max-height:85vh;overflow:auto;padding:20px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">' + (s.name||'无名') + ' 的一生</h3><button class="btn mini" onclick="this.parentElement.parentElement.parentElement.remove()">关闭</button></div>';
+  html += '<div style="margin-bottom:14px"><b>' + (s.endTitle||'') + '</b> · 评分' + s.score + ' · 战力' + s.power + ' · ' + s.lv + '级 · 享年' + s.age + '岁</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;font-size:13px">';
+  html += '<div>武魂：' + (s.soul?s.soul.name:'') + '（' + (s.soul?s.soul.xian:0) + '级先天）</div>';
+  if(s.dual) html += '<div>副武魂：' + s.dual.name + '</div>';
+  if(s.godTitle) html += '<div>神位：' + s.godTitle + '</div>';
+  if(s.org) html += '<div>势力：' + s.org + '</div>';
+  if(s.spouse) html += '<div>道侣：' + s.spouse + '</div>';
+  if(s.children) html += '<div>子嗣：' + s.children + '人</div>';
+  html += '<div>结局：' + (s.deathCause||'') + '</div>';
+  html += '</div>';
+  if(s.achievements && s.achievements.length) html += '<div style="margin-bottom:14px;font-size:12.5px"><b>成就：</b>' + s.achievements.join('、') + '</div>';
+  if(s.attrs) { html += '<div style="margin-bottom:14px;font-size:12.5px"><b>最终属性：</b>'; for(const k in s.attrs) html += k + s.attrs[k] + ' '; html += '</div>'; }
+  html += '<h4 style="margin:14px 0 8px">本局历程（' + (s.log||[]).length + '条）</h4>';
+  html += '<div style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12.5px;line-height:1.8">';
+  (s.log||[]).forEach(l=>{ html += '<div class="entry ' + (l.cls||'') + '">' + (l.text||'') + '</div>'; });
+  html += '</div></div>';
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+function exportArchive(index){
+  const s = (META.historySaves||[])[index];
+  if(!s) return;
+  const qwMap = {fei:'废武魂',pu:'普通武魂',you:'优良武魂',ding:'顶级武魂',super:'超级武魂',shen:'神级武魂'};
+  const qw = qwMap[s.soul ? s.soul.quality : ''] || (s.soul ? s.soul.quality : '');
+  const ringColor = (y)=> y>=100000?'#FFD700':y>=10000?'#FF4444':y>=1000?'#8B008B':y>=100?'#9932CC':'#FFFFFF';
+  let ringsHtml = '';
+  (s.rings||[]).forEach((r,i)=>{
+    ringsHtml += '<div style="padding:4px 0;border-bottom:1px dashed #444"><span style="color:'+ringColor(r.year)+';font-weight:bold">第'+(i+1)+'环 '+r.year+'年</span> '+r.name+' — '+r.skill+'</div>';
+  });
+  if(!ringsHtml) ringsHtml = '<div class="muted">无魂环</div>';
+  let bonesHtml = '';
+  (s.bones||[]).forEach(b=>{
+    bonesHtml += '<div style="padding:4px 0">'+b.grade+' '+b.slot+' — '+b.skill+'</div>';
+  });
+  if(!bonesHtml) bonesHtml = '<div class="muted">无魂骨</div>';
+  let attrsHtml = '';
+  if(s.attrs){ for(const k in s.attrs) attrsHtml += '<span style="display:inline-block;margin:2px 8px 2px 0"><b>'+k+'</b> '+s.attrs[k]+'</span>'; }
+  let logHtml = '';
+  (s.log||[]).forEach(l=>{
+    const cls = l.cls || '';
+    let color = '#ccc';
+    if(cls.indexOf('good')>=0) color = '#66ff99';
+    else if(cls.indexOf('bad')>=0) color = '#ff6666';
+    else if(cls.indexOf('sys')>=0) color = '#ffd700';
+    else if(cls.indexOf('legend')>=0) color = '#ff4444';
+    else if(cls.indexOf('mythic')>=0) color = '#ffd700';
+    else if(cls.indexOf('epic')>=0) color = '#c77dff';
+    else if(cls.indexOf('rare')>=0) color = '#66ccff';
+    logHtml += '<div style="padding:3px 0;color:'+color+'">'+(l.text||'')+'</div>';
+  });
+  if(!logHtml) logHtml = '<div class="muted">无历程记录</div>';
+
+  const html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>'+(s.name||'无名')+' 的一生 - 斗罗人生模拟器</title>'+
+    '<style>body{background:#1a1a2e;color:#e0e0e0;font-family:"Microsoft YaHei",sans-serif;max-width:700px;margin:0 auto;padding:16px;line-height:1.8}'+
+    'h1{color:#ffd700;text-align:center;border-bottom:2px solid #ffd700;padding-bottom:10px}'+
+    'h2{color:#66ccff;border-left:4px solid #66ccff;padding-left:10px;margin-top:24px}'+
+    '.info{background:#16213e;padding:12px;border-radius:8px;margin:10px 0}'+
+    '.muted{color:#888}'+
+    '.ach{color:#ffd700}</style></head><body>'+
+    '<h1>'+(s.name||'无名')+' 的一生</h1>'+
+    '<div class="info"><b>'+(s.endTitle||'')+'</b> · 评分 '+s.score+' · 战力 '+s.power+' · '+s.lv+'级 · 享年 '+s.age+'岁</div>'+
+    '<h2>基本信息</h2><div class="info">'+
+    '<div>姓名：'+(s.name||'无名')+' · 性别：'+(s.gender||'男')+' · 性格：'+(s.personality||'')+'</div>'+
+    '<div>武魂：'+(s.soul?s.soul.name:'')+'（'+qw+'，先天'+(s.soul?s.soul.xian:0)+'级）</div>'+
+    (s.dual?'<div>副武魂：'+s.dual.name+'</div>':'')+
+    (s.godTitle?'<div>神位：'+s.godTitle+'</div>':'')+
+    (s.org?'<div>势力：'+s.org+'</div>':'')+
+    (s.spouse?'<div>道侣：'+s.spouse+'</div>':'')+
+    (s.children?'<div>子嗣：'+s.children+'人</div>':'')+
+    '<div>结局：'+(s.deathCause||'')+'</div>'+
+    '</div>'+
+    (s.achievements && s.achievements.length ? '<h2>成就</h2><div class="info ach">'+s.achievements.join('、')+'</div>' : '')+
+    '<h2>最终属性</h2><div class="info">'+attrsHtml+'</div>'+
+    '<h2>魂环魂技</h2><div class="info">'+ringsHtml+'</div>'+
+    '<h2>魂骨</h2><div class="info">'+bonesHtml+'</div>'+
+    '<h2>本局历程（'+(s.log||[]).length+'条）</h2><div class="info" style="max-height:500px;overflow:auto">'+logHtml+'</div>'+
+    '<div class="muted" style="text-align:center;margin-top:20px;font-size:12px">保存时间：'+s.saveTime+' · 斗罗人生模拟器</div>'+
+    '</body></html>';
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '斗罗人生_存档_' + (s.name||'无名') + '_' + s.lv + '级_' + new Date().toISOString().slice(0,10) + '.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function deleteArchive(index){
+  const s = (META.historySaves||[])[index];
+  if(!s) return;
+  if(!confirm('确定删除「' + (s.name||'无名') + '」的存档吗？此操作不可撤销。')) return;
+  META.historySaves.splice(index, 1);
+  saveMeta();
+  renderHistorySaves();
+}
+function importSave(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.meta || !data.ruleset){ throw new Error('无效的存档文件格式'); }
+      if(data.ruleset !== RULESET){ throw new Error('存档版本不匹配（当前：' + RULESET + '，存档：' + data.ruleset + '）'); }
+      // 确认导入
+      if(!confirm('确定导入存档吗？这将覆盖当前所有跨世进度（轮回点/加点/图鉴/成就/排行榜），且不可撤销。')){ input.value=''; return; }
+      META = data.meta;
+      // 确保必要字段存在
+      META.lundian = META.lundian || 0;
+      META.lunhui = META.lunhui || {};
+      META.fate = META.fate || 0;
+      META.atlas = META.atlas || {souls:{}, events:{}, endings:{}};
+      META.records = META.records || {};
+      META.board = META.board || [];
+      saveMeta();
+      // 刷新页面显示
+      if(typeof renderLundian === 'function') renderLundian();
+      if(typeof renderAtlasSumm === 'function') renderAtlasSumm();
+      if(typeof renderBoard === 'function') renderBoard();
+      const msg = document.getElementById('saveMsg');
+      if(msg){ msg.innerHTML = '<span style="color:var(--good)">存档导入成功！轮回点：' + META.lundian + '，图鉴武魂：' + Object.keys(META.atlas.souls||{}).length + '种。</span>'; setTimeout(()=>{msg.innerHTML='';}, 5000); }
+    }catch(err){
+      const msg = document.getElementById('saveMsg');
+      if(msg){ msg.innerHTML = '<span style="color:var(--bad)">导入失败：' + err.message + '</span>'; }
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 /* ============ 图鉴收集（DL_RS_4.33）：跨局记录武魂/事件/结局，收集驱动重玩 ============ */
 function recordAtlas(cat, name){
@@ -1536,8 +1742,31 @@ function renderRoll(){
   else {bg='皇族/顶级宗门'; tip='生而尊贵，血脉中流淌着强者的印记。'}
   $('rollTips').innerHTML = `<b>${bg}</b> · ${tip} <br><span class="muted">精神力影响战力、猎魂感知与魂技威力；不同武魂各有属性成长倾向。寿元有限，修炼慢者将空耗一生。</span>`;
   renderGift(); // DL_RS_4.115：来世天赋面板（投胎页）
+  // DL_RS_4.176：更新重新投胎按钮状态（消耗1轮回点，防止无限刷开局）
+  const _rerollBtn = $('btnReroll');
+  const _ld = META.lundian || 0;
+  if (_ld < 1) {
+    _rerollBtn.disabled = true;
+    _rerollBtn.textContent = '重新投胎（轮回点不足）';
+    _rerollBtn.title = '轮回点不足，无法重新投胎';
+  } else {
+    _rerollBtn.disabled = false;
+    _rerollBtn.textContent = '重新投胎（消耗1轮回点，剩余' + _ld + '）';
+    _rerollBtn.title = '重新投胎消耗1点轮回点';
+  }
 }
-$('btnReroll').onclick = ()=>{ G = rollAttrs(); renderRoll(); }; // DL_RS_4.116：命格在 btnAccept 统一抽取
+$('btnReroll').onclick = ()=>{ 
+  // DL_RS_4.176：重新投胎消耗1点轮回点，防止无限刷开局
+  if ((META.lundian||0) < 1) { 
+    $('btnReroll').disabled = true; 
+    $('btnReroll').title = '轮回点不足，无法重新投胎'; 
+    return; 
+  }
+  META.lundian = (META.lundian||0) - 1;
+  saveMeta();
+  G = rollAttrs(); 
+  renderRoll(); 
+};
 $('btnAccept').onclick = ()=>{
   G._fates = rollFates(); applyFateBase(G); // DL_RS_4.116：接受命运时抽取/应用命格（含来世天赋指定命格）
   G.age = 0; G.lv = 0; G.soul = null; G.dual = null; G.rings = []; G.dualRings = []; G.skills = [];
@@ -1550,6 +1779,10 @@ $('btnAccept').onclick = ()=>{
   G.exclusiveUsed = {}; G.onceUsed = {}; G.chain = null; G.lifeCap = null; G._tier = -1;
   G.artifacts = {}; // DL_RS_4.47：魂导器持有（突破判定已取消）
   G._orgRecruitCount = 0; // DL_RS_4.173：新游戏重置势力招揽触发次数
+  // DL_RS_4.175：新游戏重置自创神位与事件多分支状态（防止跨局残留导致异常成神/立即结束）
+  G._selfGod = false; G._selfGodSeed = false; G._selfGodFaith = 0; G._selfGodDao = 0; G._selfGodFinal = false;
+  G._godChoosing = false; G._godWait = 0; G._mutateMode = null; G._godMode = null; G._marryMode = null; G._marryFocus = false;
+  G.recentEvents = []; G._mutTriggerMult = 1; G._mutGoodBonus = 0;
   // DL_RS_4.97：清理旧版神劫兼容遗留字段（_godTrial/_qualNotified，无读取点）
   // DL_RS_4.116：来世天赋——指定一次高品质事件（本局必触发）
   G._giftEv = GIFT.evQ || null;
@@ -2126,22 +2359,22 @@ function appendSelfGodBtn(){
   // DL_RS_4.170：海神九考进行中或已完成时禁用自创神位按钮
   const seaBlocked = (g.chain && g.chain.id==='seashen') || !!g.seaNineDone;
   const hasSeed = !!g._selfGodSeed;
-  const ok = !tried && !seaBlocked && hasSeed && selfGodOk();
-  const sum = a.力量 + a.敏捷 + a.体质 + a.精神力;
+  // DL_RS_4.175：自创神位改为四步事件链——不再一次性判定成败，按钮可用条件仅需有种子、未尝试、海神九考未进行
+  const ok = !tried && !seaBlocked && hasSeed;
   const btns = $('actionBtns');
   const b = document.createElement('button');
   b.className = 'btn ' + (ok ? 'primary' : 'btn-locked');
-  b.textContent = ok ? `自创神位（成功率${Math.round(selfGodP()*100)}%）` : (seaBlocked ? '自创神位（海神九考中）' : (tried ? '自创神位（已倾覆）' : (!hasSeed ? '自创神位（需神位种子）' : '自创神位')));
-  b.title = seaBlocked ? '海神九考进行中或已完成——此路与海神传承互斥，不可自创神位' : (!hasSeed ? '需先凝聚「神位种子」——99级且未感应神位传承时，99-150岁间有低概率触发神位种子事件' : '以己身之道凝聚神格、自创神位——要求更在继承神位之上');
+  b.textContent = ok ? '自创神位（开启四步神道）' : (seaBlocked ? '自创神位（海神九考中）' : (tried ? '自创神位（已倾覆）' : (!hasSeed ? '自创神位（需神位种子）' : '自创神位')));
+  b.title = seaBlocked ? '海神九考进行中或已完成——此路与海神传承互斥，不可自创神位' : (!hasSeed ? '需先凝聚「神位种子」——99级且未感应神位传承时，有低概率触发神位种子事件' : '以己身之道凝聚神格、自创神位——走四步事件链：神位种子→信仰之源→天地大道→神位凝聚，最终判定神位等级并成神');
   if(!ok){
     b.disabled = true;
-    b.title = tried ? '神格已散，此生再无凝聚神格之望' : `神格资历未臻圆满：需 四维综合≥300（当前${Math.floor(sum)}）、天命≥75、悟性≥75、战力≥150000（当前${Math.floor(power())}）`;
-  } else { b.onclick = ()=>{ // DL_RS_4.170：自创神位改为四步事件链——点击后开始「自创神道」链，而非直接判定成败
+    if(tried) b.title = '神格已散，此生再无凝聚神格之望';
+  } else { b.onclick = ()=>{ // DL_RS_4.170：自创神位四步事件链——点击后开始「自创神道」链
 G._selfGodTrial = true; G.chain = {id:'zichuang', step:0}; const ev = chainNextEvent(G.chain); if(ev){ showEvent(ev); } else { addLog('自创神道开启……','note'); } renderActions(); }; }
   btns.appendChild(b);
   $('eventBox').innerHTML = tried
     ? `<div class="muted">你已倾尽一生尝试自创神位——<b>神格崩散，此生再无凝聚神格之望</b>，唯余修炼至寿终。</div>`
-    : `<div class="muted">你臻至 99 级极限斗罗，却始终无缘神位传承——天地不渡你，你便自渡。<b>自创神位</b>：以己身之道凝聚神格、自立神位，要求更在继承之上（<b>四维综合≥300、天命≥75、悟性≥75、战力≥150000</b>），成功率低微，失败或身死道消。</div>`;
+    : `<div class="muted">你臻至 99 级极限斗罗，却始终无缘神位传承——天地不渡你，你便自渡。<b>自创神位</b>：以己身之道凝聚神格、自立神位，走四步神道——<b>神位种子→信仰之源→天地大道→神位凝聚</b>，最终凝聚神格、成就神位。</div>`;
 }
 /* 预估魂力收益（DL_RS_4.85）：与 doAction 修炼增益完全同公式，
    供行动按钮直接展示当前状态下的预估魂力 +N（含年龄/境界衰减、关口截断），玩家可直观对比各行动效率 */
@@ -3182,7 +3415,8 @@ const CHAINS = {
   seashen: {name:'海神岛试炼', desc:'漂流至海神岛，经海神岛考核获九考资格——神光淬体与观潮悟道两条路终又交汇，九考尽通可承海神之位', steps:['ss1','sea0','ss2','ss3','ss3b','ss4','ss5','ss6','ss7','ss8','ss9','ss10','ss11','ss12']},
   binghuo: {name:'冰火两仪眼', syn:{cat:'zhi',catMult:1.3}, desc:'寻得冰火两仪眼，冰泉淬体与火泉炼魂二择其一', steps:['bh1','bh2','bh3','bh4']},
   xingluo: {name:'星罗权谋', desc:'入星罗帝国宫廷卷入夺嫡之局，从龙之功与夺嫡风波两条截然不同的路', steps:['xl1','xl2','xl3','xl4']},
-  zichuang: {name:'自创神道', desc:'以己身之道凝聚神格——积累信仰、领悟大道、凝聚神位、孕育神器，四步功成则成就万古未有之神', steps:['zc1','zc2','zc3','zc4']}
+  zichuang: {name:'自创神道', desc:'以己身之道凝聚神格——积累信仰、领悟大道、凝聚神位、孕育神器，四步功成则成就万古未有之神', steps:['zc1','zc2','zc3','zc4']},
+  dasai: {name:'全大陆魂师大赛', desc:'全大陆高级魂师学院精英大赛——预选赛、晋级赛、决赛，一路过关斩将，冠军之名响彻大陆', steps:['ds1','ds2','ds3','ds4']}
 };
 function chainNextEvent(chain){
   if(!chain) return null;
@@ -3497,6 +3731,12 @@ function resolveEvent(ev, idx){
   /* DL_RS_4.128：武魂变异走「同源族系进化链」——仅链上武魂可变异，变异后为原武魂的升级/退化版，
      保持武魂类型（cat）不变；蓝电霸王龙特殊路径 1/3 退化罗三炮（→黄金圣龙）。 */
   if(ev.type==='mutate'){
+    // DL_RS_4.174：事件多分支——根据玩家选择调整变异概率和方向
+    const _mm = o._mutateMode || 'free';
+    let _mutTriggerMult = 1, _mutGoodBonus = 0;
+    if(_mm==='suppress'){ _mutTriggerMult = 0.4; _mutGoodBonus = 0.2; }
+    else if(_mm==='guide'){ _mutTriggerMult = 1.5; _mutGoodBonus = 0.2; }
+    if(o._mutateTxt) addLog(o._mutateTxt,'note');
     // DL_RS_4.137：本体武魂与生俱来，自身即武魂，不受武魂变异机制侵扰（也不进变异链）
     if(g.soul.cat==='bt'){
       addLog('本体武魂与生俱来，不受变异侵扰。','note');
@@ -3507,7 +3747,8 @@ function resolveEvent(ev, idx){
     const mutBonus = (g.org==='蓝电霸王龙家族' && g.soul.name==='蓝电霸王龙') ? 0.03
       : (g.org==='七宝琉璃宗' && g.soul.name==='七宝琉璃塔') ? 0.05 : 0;
     // DL_RS_4.143：上三宗专属武魂变异增益可突破 20% 上限（蓝电满加成 23%、七宝满加成 25%）
-    const trigger = Math.random() < Math.min(0.20 + mutBonus, 0.05 + lunhuiVal('goodMut')*0.0025 + mutBonus);
+    // DL_RS_4.174：事件多分支调整——压制×0.4、引导×1.5
+    const trigger = Math.random() < Math.min(0.20 + mutBonus, (0.05 + lunhuiVal('goodMut')*0.0025 + mutBonus) * _mutTriggerMult);
     const oldName = g.soul.name;
     if(!trigger){
       addLog('武魂隐隐躁动，却终究归于沉寂。','note');
@@ -3535,7 +3776,7 @@ function resolveEvent(ev, idx){
         let up;
         if(ci.idx===0) up = true;                       // 底端仅良性
         else if(ci.idx===ci.len-1) up = false;          // 顶端仅恶性
-        else up = Math.random() < 0.5;                   // 中间良/恶对半
+        else up = Math.random() < (0.5 + _mutGoodBonus);  // DL_RS_4.174：中间良/恶对半，多分支可偏移
         const vt = variantTarget(oldName, g.soul.quality, up);
         // DL_RS_4.141：已突破 80 级的九宝琉璃塔不可退化回七宝——否则等级/魂环/封号/神考状态矛盾（七宝 79 级上限不追溯）
         if(vt.hit && vt.name==='七宝琉璃塔' && g.lv>=80){
@@ -3554,17 +3795,16 @@ function resolveEvent(ev, idx){
   // DL_RS_4.94：承接改为「三档自主选择」（低档三级神/中档二级神/高档一级神·神王），不再自动取最高
   // 修复（代码审查）：仅选择「承接神位」才可获得传承；「婉拒神位」则放弃，不再强制获神位
   if(ev.type==='god'){
-    if(idx===0){
+    // DL_RS_4.174：事件多分支——接受/拒绝自创/等待更高神位
+    const _gm = o._godMode || (idx===0?'accept':'wait');
+    if(o._godTxt) addLog(o._godTxt,'note');
+    if(_gm==='accept'){
       if(g.lv >= 70){
         if(g.godTitle){
-          // DL_RS_4.66：神位继承后不再更改——属性达标也不会升级（原著唐三海神修罗神为同时继承一步到位）
           addLog('神界祥云在你面前流转——你的神位已定，诸神退避，再无更替可言。','note');
         } else if(!g._shenDone){
           const avail = godAvail(a);
           if(avail.length){
-            // DL_RS_4.94：弹出三档自主选择界面（玩家按自身实力选择承接何种神位，选定后不再更改）
-            // DL_RS_4.95（全面审查）：openGodInheritUI 渲染三档后必须跳过本年 endYear——
-            // 否则三档按钮被年度循环 renderActions 覆盖（玩家看不到选择），且 _godChoosing 永久卡 true 使 95+ 神位感应永久失效
             openGodInheritUI();
             _godBlock = true;
           } else {
@@ -3574,8 +3814,30 @@ function resolveEvent(ev, idx){
       } else {
         addLog('神位的气息在你头顶一闪而逝——修为未至魂圣，尚不足以承受神位传承。','note');
       }
+    } else if(_gm==='refuse'){
+      // 拒绝传承，走自创神位路线——直接凝聚神位种子
+      if(!g._selfGodSeed && g.lv>=90){
+        g._selfGodSeed = true;
+        addLog('你拒绝了神祇的传承，以己身之道凝聚出了神位种子——自创神位之路就此开启。','good');
+      } else {
+        addLog('你拒绝了这份传承，神光在你面前悄然消散。','note');
+      }
     } else {
-      addLog('你婉拒了神位传承，神光在你面前悄然消散。','note');
+      // 等待更高神位——设置标记，下次神位传承事件品质提升
+      g._godWait = (g._godWait||0) + 1;
+      addLog(`你婉拒了这份传承，相信未来会有更高的神位在等待你（已等待 ${g._godWait} 次）。`,'note');
+    }
+  }
+  // DL_RS_4.174：道侣选择事件多分支
+  if(ev.type==='marriage'){
+    const _mrm = o._marryMode || 'arrange';
+    if(o._marryTxt) addLog(o._marryTxt,'note');
+    if(_mrm==='focus'){
+      g._marryFocus = true;
+      addLog('你暂不考虑儿女情长，一心向道，修炼之心更加坚定。','good');
+    } else if(!g.spouse){
+      // 主动追求/接受安排都触发marriage，但候选偏好不同
+      marriage();
     }
   }
   // 魂师对决（DL_RS_4.99）：挑战赛/精英赛/生死斗——战力检验，胜者多得
@@ -3675,6 +3937,19 @@ function resolveEvent(ev, idx){
   if(o.custom==='selfGodFinal'){ selfGodFinal(); return; }
   if(o.custom==='selfGodSeed'){ G._selfGodSeed = true; addLog('—— 神位种子凝聚成功！你已具备自创神位的根基，可在行动界面选择「自创神位」开启四步神道。','good'); }
   if(o.joinOrg){ joinOrg(o.joinOrg); } // DL_RS_4.170：建宗立派事件——选择后加入自建宗门
+  // DL_RS_4.175：海神九考第九考完成——标记seaNineDone，等级≥99则直接继承海神神位并成神
+  if (ev.chainId === 'seashen' && ev.step === 'ss11' && g.alive) {
+    g.seaNineDone = true; // 标记九考全通（供renderGame海神继承、事件触发条件、自创神位禁用使用）
+    if (g.lv >= 99 && !g.godTitle) {
+      g.godTitle = '海神'; g.god = GODS['海神']; g.shenkaoDone = true; g._godChoosing = false;
+      if(g.achievements.indexOf('神位传承')<0) g.achievements.push('神位传承');
+      if(g.achievements.indexOf('海神九考')<0) g.achievements.push('海神九考');
+      addLog('<b>海神九考尽数通过，海神认可了你！</b>你于海神峰巅承接 <b>海神</b>（一级神祇·主神）之位，无尽海潮为你加冕。','good');
+      ascend(); return;
+    } else if (!g.godTitle) {
+      addLog('<b>海神九考尽数通过！</b>只待臻至 99 级极限斗罗，便可承载海神神位成神。','good');
+    }
+  }
   advanceChain(ev, o);
   clampAll();
   if(!_godBlock) endYear(); // DL_RS_4.95（全面审查）：神位传承三档选择占用本年，选档/婉拒后由 renderActions 继续当年行动
@@ -4336,6 +4611,7 @@ function finishLife(force){
 }
 $('btnAgain').onclick = ()=>{ startNewLife(); };
 $('btnBackStart').onclick = ()=>{ renderStart(); show('screen-start'); };
+$('btnSaveArchive').onclick = ()=>{ saveLifeArchive(); };
 /* 查看本局历程：按年龄时间线展示本局全部日志（每次打开都渲染最新 G.log，杜绝旧局残留）；
    DL_RS_4.17：每条日志以金色「第X岁」标注年份，让哪一年发生了什么事一目了然 */
 let _lifePage = 0; // DL_RS_4.156：历程分页页码（0=最新一页），支持翻看更早记录
@@ -4446,7 +4722,7 @@ let EVENTS = [
    opts:[{label:'悄悄去寻', need:{attr:{力量:15}}, roll:{chance:0.25, extra:0.15, succ:{力量:8,声望:8}, succText:'你竟目睹了千年魂兽的真容，全身而退。', fail:{体质:-10}, failText:'险些丧命，被猎人救回。'}}, {label:'当没听见', eff:{}}]},
   {band:0, q:'uncommon', minAge:12, name:'星象垂青', text:'今夜星河璀璨，你仰观天象，竟隐隐窥见一丝命数轨迹。', w:0.7,
    opts:[{label:'静观星轨', need:{attr:{悟性:18}}, eff:{天命:4, 悟性:2}, evSet:'xingxiang'}, {label:'观星许愿', eff:{天命:2}}]},
-  {band:1, q:'rare', minAge:14, name:'魂师大赛', text:'全大陆高级魂师学院大赛在即，各地天才齐聚。', req:{lv:20},
+  {band:1, q:'rare', minAge:14, name:'学院切磋赛', text:'附近几所学院联合举办切磋赛，各地天才齐聚。', req:{lv:20},
    opts:[{label:'报名参赛', need:{lv:20}, roll:{chance:0.5, extra:0.05, succ:{声望:12,力量:5,敏捷:5}, succText:'你在大赛上大放异彩，名动一时。', fail:{体质:-6}, failText:'大赛残酷，你重伤退场。'}}, {label:'赛场观摩', eff:{悟性:6}}]},
   {band:1, q:'rare', minAge:15, name:'星斗引路', text:'你与同伴深入星斗大森林，为猎取魂环做准备。一处岔路，仿佛在引你走向深处。', once:true, chainId:'xingdou', chainStart:true, step:'xingdou1', w:0.35,
    opts:[{label:'循路深入', eff:{力量:4, 精神力:3}}]},
@@ -4462,10 +4738,10 @@ let EVENTS = [
    opts:[{label:'接受供奉', need:{prestige:30}, eff:{家境:10, 声望:5}}, {label:'婉拒归隐', eff:{悟性:4}}]},
   {band:3, q:'rare', minAge:60, name:'冲击极限', text:'寿元渐长，你想在最后的日子里冲击更高的境界。',
    opts:[{label:'放手一搏', need:{attr:{体质:30}}, roll:{chance:0.35, extra:0.05, succ:{悟性:8,力量:6}, succText:'你将毕生领悟融会贯通。', fail:{体质:-10}, failText:'气血亏空，大不如前。', death:0.06, deathText:'冲击境界时气血耗尽'}}, {label:'安心颐养', eff:{悟性:3}}]},
-  {band:3, q:'epic', minAge:70, name:'最后的兽潮', syn:{cat:'shou',catMult:1.2}, text:'又一场百年不遇的兽潮袭来，你已垂垂老矣。', req:{ev:'shouchao1'},
+  {band:3, q:'epic', minAge:70, name:'最后的兽潮', once:true, syn:{cat:'shou',catMult:1.2}, text:'又一场百年不遇的兽潮袭来，你已垂垂老矣。', req:{ev:'shouchao1'},
    opts:[{label:'最后一次出手', need:{attr:{力量:40}}, evAdd:{flag:'shouchao2', eff:{声望:10}, txt:'你曾镇压过兽潮，此刻百姓视你为最后的希望'}, roll:{chance:0.3, extra:0.1, succ:{声望:20,力量:6}, succText:'你以残躯护住一城百姓，被载入史册。', fail:{体质:-20}, failText:'力不从心，重伤。', death:0.2, deathText:'燃尽最后一丝魂力'}}, {label:'就此作别', eff:{}}]},
   /* ==== 紫（epic） ==== */
-  {band:1, q:'legend', minAge:12, name:'仙品仙草', syn:{cat:'zhi',catMult:1.2}, text:'你在一处秘境深处发现传说中的仙品药草——九品紫芝！',
+  {band:1, q:'legend', minAge:12, name:'仙品仙草', once:true, syn:{cat:'zhi',catMult:1.2}, text:'你在一处秘境深处发现传说中的仙品药草——九品紫芝！',
    opts:[{label:'当场服下', need:{attr:{体质:25}}, eff:{体质:15, 悟性:8, 力量:6, 精神力:6}, evSet:'xiancao', evAdd:{flag:'mijing', eff:{体质:5}, txt:'你曾深入上古秘境，秘境根骨尽数炼化了九品紫芝的药力'}}, {label:'献给宗门', eff:{家境:15, 声望:12}}]},
   {band:1, q:'epic', minAge:20, name:'魂骨碎片', syn:{cat:'qi',catMult:1.2}, text:'遗迹深处，一块残破的远古魂骨静静悬浮，散发微光。', once:true, chainId:'hunbing', chainStart:true, step:'hb1', w:0.35,
    opts:[{label:'收入囊中', eff:{精神力:4}}]},
@@ -4475,21 +4751,64 @@ let EVENTS = [
    opts:[{label:'求问天机', need:{attr:{天命:20}}, eff:{天命:8, 悟性:8}, evSet:'tianji', evAdd:{flag:'shenyi', eff:{天命:4}, txt:'你自幼便被神明一瞥，天机老人惊叹你神眷在身，赠你一句天机'}}, {label:'只当诳语', eff:{}}]},
   {band:2, q:'legend', minAge:35, name:'上古秘境', syn:{wq:'ding',wqMult:1.2}, text:'传说中的上古秘境开启，其中机缘无数，也凶险万分。', once:true,
    opts:[{label:'孤身深入', need:{attr:{力量:40, 体质:30}}, evSet:'mijing', roll:{chance:0.4, extra:0.12, succ:{悟性:12, 力量:10, 敏捷:8, 精神力:8}, succText:'你夺得秘境至宝，脱胎换骨！', fail:{体质:-18}, failText:'秘境崩塌，九死一生。', death:0.2, deathText:'殒落于上古秘境'}}, {label:'结伴而行', roll:{chance:0.5, extra:0.05, succ:{悟性:8, 力量:6}, succText:'你分得一份机缘，小有收获。', fail:{体质:-8}, failText:'宝物被夺，狼狈而归。'}}]},
-  {band:2, q:'epic', minAge:40, name:'武魂殿围剿', text:'武魂殿对你所在势力发难，刀兵相接。', ex:'wuhundian', req:{lv:55},
+  {band:2, q:'epic', minAge:40, name:'武魂殿围剿', once:true, text:'武魂殿对你所在势力发难，刀兵相接。', ex:'wuhundian', req:{lv:55},
    opts:[{label:'死战到底', need:{attr:{力量:35}}, roll:{chance:0.45, extra:0.05, succ:{声望:15,力量:10}, succText:'你杀出重围，名震一时。', fail:{体质:-16}, failText:'身负重伤，九死一生。', death:0.12, deathText:'战死于武魂殿围剿'}}, {label:'投诚保命', eff:{声望:-8, 家境:5}}]},
   {band:3, q:'legend', minAge:66, name:'神格碎片', text:'陨落的古神遗留下神格碎片，蕴含着破碎的神之法则。', once:true, req:{lv:[80,99], notShenDone:true},
    opts:[{label:'参悟碎片', need:{attr:{悟性:50}}, roll:{chance:0.4, extra:0.1, succ:{悟性:14, 天命:8, 精神力:8}, succText:'你参透了一丝神之法则，神性初显！', fail:{体质:-8}, failText:'神格碎片灼伤神魂。'}}, {label:'转赠强者', eff:{声望:15}}]},
   /* ==== 金（legend） ==== */
-  {band:1, q:'legend', minAge:16, name:'武魂变异', text:'一夜之间，你的武魂剧烈躁动，仿佛要挣脱凡胎的桎梏。', once:true, type:'mutate', w:0.35,
-   opts:[{label:'任由它去', eff:{}}]},
-  {band:2, q:'mythic', minAge:40, name:'神位传承', text:'神界降下神谕，一位神祇的传承之位在你面前显现。', once:true, type:'god', req:{lv:[95,99], notShenDone:true},
-   opts:[{label:'承接神位', need:{attr:{天命:30}}, eff:{天命:6}}, {label:'婉拒神位', eff:{}}]},
+  {band:1, q:'legend', minAge:16, name:'武魂变异', text:'一夜之间，你的武魂剧烈躁动，仿佛要挣脱凡胎的桎梏。是压制、引导，还是放任？', once:true, type:'mutate', w:0.35,
+   opts:[
+     {label:'压制变异', need:{attr:{精神力:25}}, eff:{精神力:2}, _mutateMode:'suppress', _mutateTxt:'你以强大精神力压制武魂躁动，变异概率大减，但若变异则更趋良性。'},
+     {label:'引导变异', need:{attr:{悟性:25}}, eff:{悟性:2}, _mutateMode:'guide', _mutateTxt:'你以悟性引导武魂变异，变异概率提升，良性概率也更高。'},
+     {label:'放任变异', eff:{}, _mutateMode:'free', _mutateTxt:'你放任武魂自行变化，一切听天由命。'}
+   ]},
+  {band:1, q:'rare', minAge:18, name:'姻缘将至', text:'到了成家的年纪，身边也出现了一些缘分。是主动追求、接受家族安排，还是专注修炼？', once:true, type:'marriage', req:{xianMin:1}, w:0.4,
+   opts:[
+     {label:'主动追求', need:{attr:{魅力:15}}, eff:{声望:3}, _marryMode:'pursue', _marryTxt:'你主动出击，追求心仪之人。'},
+     {label:'接受家族安排', eff:{家境:3}, _marryMode:'arrange', _marryTxt:'你接受了家族的安排，门当户对。'},
+     {label:'专注修炼', eff:{悟性:3}, _marryMode:'focus', _marryTxt:'你决定暂不考虑儿女情长，专注修炼。'}
+   ]},
+  {band:2, q:'mythic', minAge:40, name:'神位传承', text:'神界降下神谕，一位神祇的传承之位在你面前显现。承接、拒绝以图自创，还是等待更高神位？', once:true, type:'god', req:{lv:[95,99], notShenDone:true},
+   opts:[
+     {label:'承接神位', need:{attr:{天命:30}}, eff:{天命:6}, _godMode:'accept', _godTxt:'你决定承接这份神位传承。'},
+     {label:'拒绝以图自创', need:{attr:{悟性:40, 天命:25}}, eff:{悟性:4, 天命:3}, _godMode:'refuse', _godTxt:'你拒绝了这份传承，决心走出一条自创神位的道路。'},
+     {label:'等待更高神位', eff:{天命:2}, _godMode:'wait', _godTxt:'你婉拒了这份传承，相信未来会有更高的神位在等待你。'}
+   ]},
   {band:1, q:'legend', minAge:25, name:'神兽认主', syn:{cat:'shou',catMult:1.25}, text:'一头传说中的神兽幼崽主动亲近你，愿与你缔结契约。', once:true, req:{lv:40},
    opts:[{label:'缔结契约', need:{attr:{精神力:40}}, eff:{力量:14, 敏捷:10, 体质:8, 精神力:10, 声望:20}, evSet:'shenshou'}, {label:'婉拒', eff:{}}]},
   {band:2, q:'legend', minAge:50, name:'十万年魂骨', syn:{cat:'qi',catMult:1.2}, text:'星斗大森林之底，一块十万年魂骨散发出惊天气息。', once:true, req:{lv:60},
    opts:[{label:'融合魂骨', need:{attr:{体质:40}}, roll:{chance:0.5, extra:0.1, succ:{力量:20, 体质:15, 敏捷:10, 精神力:10}, succText:'十万年魂骨融入你身，战力惊天！', fail:{体质:-25}, failText:'魂骨凶性难驯，你重伤垂死。', death:0.3, deathText:'被十万年魂骨吞噬'}}, {label:'放弃', eff:{}}]},
+  /* ==== 90-99级后期事件池（DL_RS_4.174：补后期内容短板，封号历练/神界感应/极限争锋） ==== */
+  /* 封号斗罗历练（90-94级） */
+  {band:3, q:'epic', minAge:60, name:'封号游历', text:'你已晋封号斗罗，大陆之上再难逢敌手。你决定游历大陆，见识更广阔的天地。', once:true, req:{lv:[90,94]},
+   opts:[{label:'深入极北之地', need:{attr:{体质:50}}, roll:{chance:0.5, extra:0.05, succ:{体质:10, 精神力:8, 悟性:6}, succText:'极北苦寒磨砺了你的意志，你窥见了冰之大道的一角。', fail:{体质:-12}, failText:'极北之地太过凶险，你重伤而返。'}}, {label:'闯荡杀戮之都', need:{attr:{力量:50}}, roll:{chance:0.45, extra:0.05, succ:{力量:12, 体质:8, 声望:10}, succText:'杀戮之都的血战让你杀气凝实，战力大增！', fail:{体质:-15}, failText:'杀戮之都太过残酷，你险些殒命其中。', death:0.05, deathText:'殒命于杀戮之都'}}, {label:'隐居悟道', eff:{悟性:10, 精神力:6}}]},
+  {band:3, q:'epic', minAge:62, name:'封号争锋', text:'一位老牌封号斗罗向你发起挑战，声称要教训你这个后辈。', once:true, req:{lv:[90,94]},
+   opts:[{label:'接受挑战', need:{attr:{力量:55}}, roll:{chance:0.45, extra:0.08, succ:{声望:20, 力量:8, 天命:5}, succText:'你击败了老牌封号，威名更盛！', fail:{体质:-18}, failText:'你败在了老牌封号手下，颜面尽失。'}}, {label:'婉拒', eff:{悟性:5}}]},
+  {band:3, q:'rare', minAge:60, name:'收徒传艺', text:'一位天赋异禀的年轻人慕名而来，希望拜你为师。', req:{lv:[90,94]},
+   opts:[{label:'收为弟子', need:{attr:{悟性:40}}, eff:{声望:10, 悟性:5, 金魂币:200}, evSet:'has_disciple'}, {label:'婉拒', eff:{}}]},
+  /* 神界感应（95-98级） */
+  {band:3, q:'legend', minAge:65, name:'神界低语', text:'你突破95级后，偶尔能听到来自神界的低语，仿佛有什么在召唤你。', once:true, req:{lv:[95,98], notShenDone:true},
+   opts:[{label:'凝神倾听', need:{attr:{精神力:60}}, roll:{chance:0.5, extra:0.05, succ:{精神力:12, 悟性:8, 天命:6}, succText:'你听清了神界的低语，神位的轮廓在你心中浮现。', fail:{精神力:-10}, failText:'低语太过模糊，你神魂受创。'}}, {label:'屏蔽杂音', eff:{精神力:5}}]},
+  {band:3, q:'legend', minAge:67, name:'神位竞争者', text:'你感应到另一位极限斗罗也在觊觎同一个神位，你们之间必有一战。', once:true, req:{lv:[95,98], notShenDone:true},
+   opts:[{label:'主动约战', need:{attr:{力量:65, 体质:60}}, roll:{chance:0.4, extra:0.08, succ:{声望:25, 力量:10, 天命:8}, succText:'你击败了竞争者，神位之路再无障碍！', fail:{体质:-25}, failText:'你败在了竞争者手下，神位之路蒙上阴影。', death:0.08, deathText:'殒命于神位之争'}}, {label:'避其锋芒', eff:{悟性:8, 天命:3}}]},
+  {band:3, q:'epic', minAge:66, name:'神考资格', text:'你感应到一处神考遗迹，通过考验便可获得神考资格，离成神更近一步。', once:true, req:{lv:[95,98], notShenDone:true},
+   opts:[{label:'闯神考遗迹', need:{attr:{精神力:55, 悟性:50}}, roll:{chance:0.45, extra:0.05, succ:{悟性:10, 精神力:8, 天命:10}, succText:'你通过了考验，获得神考资格！', fail:{精神力:-15}, failText:'考验太过凶险，你重伤而退。', death:0.06, deathText:'殒命于神考遗迹'}}, {label:'放弃', eff:{悟性:5}}]},
+  /* 极限斗罗争锋（99级） */
+  {band:3, q:'mythic', minAge:70, name:'极限之巅', text:'你达到了99级极限斗罗，站在了凡人的巅峰。神界的大门已在你面前缓缓开启。', once:true, req:{lv:99, notShenDone:true},
+   opts:[{label:'冲击神位', need:{attr:{天命:50}}, roll:{chance:0.35, extra:0.1, succ:{天命:15, 悟性:10, 精神力:10}, succText:'你触摸到了神位的门槛，成神之路一片坦途！', fail:{体质:-20, 精神力:-15}, failText:'神位之力太过磅礴，你被反噬重伤。'}}, {label:'稳固根基', eff:{体质:10, 精神力:8, 悟性:6}}]},
+  {band:3, q:'legend', minAge:72, name:'信仰之力', text:'你的威名已传遍大陆，无数生灵开始敬仰你、供奉你。庞大的信仰之力向你汇聚。', once:true, req:{lv:99, notShenDone:true, prestige:50},
+   opts:[{label:'接纳信仰', need:{attr:{精神力:65}}, eff:{天命:12, 精神力:8, 声望:15}, evSet:'has_faith'}, {label:'拒绝信仰', eff:{悟性:8}}]},
   {band:3, q:'mythic', minAge:68, name:'成神契机', text:'你窥见了成神的最后一道门槛，神光在你体内流转。', once:true, req:{lv:[90,99], notShenDone:true},
    opts:[{label:'明悟本心', need:{attr:{悟性:60}}, eff:{悟性:12, 天命:8, 体质:6, 精神力:8}}, {label:'顺其自然', eff:{}}]},
+  /* ==== 魂师大赛事件链（DL_RS_4.174：全大陆高级魂师学院精英大赛，中期目标感） ==== */
+  {band:2, q:'epic', minAge:40, name:'大赛报名', text:'全大陆高级魂师学院精英大赛开幕！各大学院与宗门纷纷遣人参赛，这是扬名立万的最佳机会。', once:true, chainId:'dasai', chainStart:true, step:'ds1', req:{lv:[40,65], xianMin:1}, w:0.3,
+   opts:[{label:'报名参赛', need:{attr:{力量:25}}, eff:{声望:5}, evSet:'dasai_join'}, {label:'专注修炼', eff:{悟性:4}}]},
+  {band:2, q:'epic', name:'预选赛', text:'预选赛开打！三轮循环赛，每场都是硬仗，胜两场即可晋级。', chainId:'dasai', step:'ds2', req:{ev:'dasai_join'},
+   opts:[{label:'全力出战', need:{attr:{力量:30, 体质:25}}, roll:{chance:0.55, extra:0.05, succ:{声望:12, 力量:5, 金魂币:200}, succText:'三战两胜，你顺利晋级！', fail:{体质:-8}, failText:'强敌环伺，你未能出线。', death:0.03, deathText:'殒命于预选赛擂台'}}, {label:'稳扎稳打', need:{attr:{精神力:25}}, roll:{chance:0.65, extra:0.03, succ:{声望:8, 悟性:4, 金魂币:100}, succText:'你以巧取胜，稳步晋级。', fail:{体质:-4}, failText:'实力不济，遗憾出局。'}}]},
+  {band:2, q:'legend', name:'晋级赛', text:'晋级赛更加惨烈，五轮单败淘汰，每一场都不容有失。强者如云，你能走多远？', chainId:'dasai', step:'ds3', req:{ev:'dasai_join'},
+   opts:[{label:'血战到底', need:{attr:{力量:40, 体质:35}}, roll:{chance:0.4, extra:0.08, succ:{声望:20, 力量:8, 金魂币:500}, succText:'你连克强敌，杀入决赛！', fail:{体质:-15}, failText:'你倒在了晋级赛的路上，虽败犹荣。', death:0.06, deathText:'殒命于晋级赛死斗'}}, {label:'以智取胜', need:{attr:{精神力:35, 悟性:35}}, roll:{chance:0.5, extra:0.05, succ:{声望:15, 悟性:6, 金魂币:300}, succText:'你战术精妙，晋级决赛！', fail:{体质:-10}, failText:'对手实力碾压，你止步半决赛。'}}]},
+  {band:2, q:'mythic', name:'决赛之巅', text:'决赛！全大陆的目光都汇聚于此。冠军将获得无上荣耀与丰厚奖励，名垂青史！', chainId:'dasai', step:'ds4', req:{ev:'dasai_join'},
+   opts:[{label:'争夺冠军', need:{attr:{力量:50, 体质:45, 精神力:40}}, roll:{chance:0.3, extra:0.1, succ:{声望:40, 力量:12, 体质:8, 精神力:8, 金魂币:1000, 天命:5}, succText:'你力压群雄，夺得冠军！全大陆高呼你的名字！', fail:{体质:-20}, failText:'你与冠军失之交臂，获得亚军。', death:0.08, deathText:'殒命于决赛之巅'}}, {label:'保季军', need:{attr:{力量:40}}, roll:{chance:0.6, extra:0.05, succ:{声望:20, 力量:5, 金魂币:400}, succText:'你稳扎稳打，获得季军。', fail:{体质:-8}, failText:'你未能登上领奖台。'}}]},
   /* ==== 事件链后续环节（仅由链驱动，强制出现） ==== */
   {band:1, q:'rare', name:'玄天暗器', syn:{cat:'qi',catMult:1.25}, text:'残卷中的暗器手法晦涩难懂，你却越研越有滋味。', chainId:'tangmen', step:'tangmen2',
    opts:[{label:'潜心参研', need:{attr:{悟性:20}}, eff:{悟性:8, 敏捷:5, 精神力:5}}, {label:'浅尝辄止', eff:{悟性:3}}]},
@@ -4593,7 +4912,7 @@ let EVENTS = [
   /* 蓝 · 幼年 / 青年 */
   {band:0, q:'rare', minAge:12, name:'秘境小试', syn:{wq:'ding',wqMult:1.2}, text:'附近出现一处小型秘境，长辈带你入内试炼，传说其中藏有前人之物。',
    opts:[{label:'深入寻宝', need:{attr:{力量:20}}, roll:{chance:0.45, extra:0.05, succ:{力量:8, 敏捷:6, 悟性:4}, succText:'你寻得前人遗物，收获颇丰！', fail:{体质:-6}, failText:'触动了禁制，狼狈退出。'}}, {label:'外围观摩', eff:{悟性:3}}]},
-  {band:1, q:'epic', minAge:18, name:'杀戮之都', syn:{wq:'ding',wqMult:1.2}, text:'传闻杀戮之都中藏有极致机缘，却也是九死一生的修罗场。', req:{lv:30},
+  {band:1, q:'epic', minAge:18, name:'杀戮之都', once:true, syn:{wq:'ding',wqMult:1.2}, text:'传闻杀戮之都中藏有极致机缘，却也是九死一生的修罗场。', req:{lv:30},
    opts:[{label:'闯一闯', need:{attr:{力量:30}}, roll:{chance:0.35, extra:0.1, succ:{力量:14, 敏捷:10, 声望:18}, succText:'你于杀戮场中杀出一条血路！', fail:{体质:-22}, failText:'险些殒命，狼狈逃出。', death:0.18, deathText:'殒落于杀戮之都'}}, {label:'记在心里', eff:{悟性:3}}]},
   {band:1, q:'uncommon', minAge:21, name:'魂骨黑市', syn:{cat:'qi',catMult:1.25}, text:'黑市中出现一块千年魂骨，要价不菲，真假难辨。',
    opts:[{label:'倾囊买下', need:{money:900}, eff:{金魂币:-900, 体质:8}}, {label:'放弃', eff:{悟性:2}}]},
@@ -4609,7 +4928,7 @@ let EVENTS = [
    opts:[{label:'缔结盟约', need:{attr:{精神力:40}}, eff:{力量:12, 体质:10, 声望:18}}, {label:'谨慎保持距离', eff:{悟性:6}}]},
   {band:2, q:'epic', minAge:50, name:'上古丹方', syn:{cat:'zhi',catMult:1.25}, text:'你得一张上古丹方，传言可洗筋伐髓，脱胎换骨。', once:true, req:{ev:'xiancao'},
    opts:[{label:'寻药炼制', need:{money:600}, eff:{金魂币:-600, 体质:12, 悟性:6}, evAdd:{flag:'mijing', eff:{悟性:4}, txt:'秘境采得的珍稀药引，让丹方功效更上一层'}}, {label:'转售他人', eff:{金魂币:500}}]},
-  {band:3, q:'epic', minAge:68, name:'武道真意', text:'你于垂暮之年重读半生战录，忽然窥见一丝武道真意。',
+  {band:3, q:'epic', minAge:68, name:'武道真意', once:true, text:'你于垂暮之年重读半生战录，忽然窥见一丝武道真意。',
    opts:[{label:'融会贯通', need:{attr:{悟性:55}}, eff:{力量:12, 悟性:8}}, {label:'含笑放下', eff:{悟性:6}}]},
   /* 金 */
   {band:2, q:'legend', minAge:52, name:'神界缝隙', text:'神界与下界的缝隙骤然裂开，神光倾泻而下，仿佛在窥探人间。', once:true, req:{lv:85, notShenDone:true},
@@ -4661,7 +4980,7 @@ let EVENTS = [
   /* ==== 魂师对决（DL_RS_4.99）==== */
   {band:1, q:'rare', minAge:16, maxAge:70, name:'魂师挑战赛', text:'镇上的武斗场今日开擂，三教九流的魂师摩拳擦掌，彩金丰厚。', type:'duel', mode:'arena', req:{xianMin:1},
    opts:[{label:'下场迎战', need:{attr:{力量:20}}, eff:{}, evSet:'duelist', duelTxt:'实战对决·胜败依战力而定'}, {label:'观战下注', roll:{chance:0.5, succ:{金魂币:300}, succText:'你押对了人，小赚一笔。', fail:{金魂币:-150}, failText:'看走了眼，血本无归。'}, duelTxt:'押注对决·胜负各半'}, {label:'不凑热闹', eff:{}, duelTxt:'作壁上观'}]},
-  {band:1, q:'rare', minAge:16, maxAge:45, name:'全大陆高级魂师学院精英大赛', text:'大陆盛事——武魂殿主办的全大陆高级魂师学院精英大赛即将开赛，各大学院精英云集，胜者将名动天下、得魂骨重赏。', once:true, type:'duel', mode:'elite', req:{lv:20, xianMin:1}, w:0.55,
+  {band:1, q:'rare', minAge:15, maxAge:38, name:'武魂殿学院赛', text:'武魂殿主办的区域学院赛开赛——这是年轻魂师崭露头角的舞台，胜者可获武魂殿推荐，直通更高规格的赛事。', once:true, type:'duel', mode:'elite', req:{lv:15, xianMin:1}, w:0.5,
    opts:[{label:'以学院之名报名', eff:{}, evAdd:{flag:'duelist', eff:{声望:15}, txt:'身经百战的老将一登场，令对手未战先怯'}, duelTxt:'预选赛·晋级赛·总决赛层层闯关'}, {label:'闭关修炼，错过盛会', eff:{悟性:2}, duelTxt:'放弃参赛·安心修炼'}]},
   {band:2, q:'epic', minAge:30, maxAge:70, name:'生死斗', text:'地下的黑角斗场里，生死状一签，胜者通吃，败者非死即残。', type:'duel', mode:'death', req:{lv:35, xianMin:1},
    opts:[{label:'押上性命应战', need:{attr:{体质:35}}, eff:{}, duelTxt:'生死对决·胜者通吃，败者非死即残'}, {label:'只是观战', eff:{}, duelTxt:'作壁上观'}]},
@@ -4691,7 +5010,7 @@ let EVENTS = [
    opts:[{label:'擎起海神三叉戟', eff:{体质:8, 力量:5, cult:1.9}, chainGoto:'ss10'}]},
   {band:2, q:'epic', name:'海神九考·第八考·斩杀深海魔鲸王', text:'第八考「斩杀深海魔鲸王」——集齐一身魂骨、武魂臻至九环之巅，于深海之渊独战深海魔鲸王（百万年魂兽），铸就登神路上最后一道试炼。', chainId:'seashen', step:'ss10', req:{lv:90},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'独战深海魔鲸王', eff:{悟性:7, 天命:4, cult:2.0}, chainGoto:'ss11'}]},
-  {band:2, q:'epic', name:'海神九考·第九考·海神传承', text:'第九考「海神传承」——通过七情考验，重塑海神之心，神光如海潮倾泻而下，海神虚影于光中浮现，向你投来认可的目光。九考尽通，你已具备承接海神神位的资格。', chainId:'seashen', step:'ss11', req:{lv:95},  // DL_RS_4.172：海神九考等级门槛 chainEnd:true, markDone:'seaNineDone',
+  {band:2, q:'epic', name:'海神九考·第九考·海神传承', text:'第九考「海神传承」——通过七情考验，重塑海神之心，神光如海潮倾泻而下，海神虚影于光中浮现，向你投来认可的目光。九考尽通，你已具备承接海神神位的资格。', chainId:'seashen', step:'ss11', req:{lv:95}, chainEnd:true, markDone:'seaNineDone',  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'承接海神之位', eff:{体质:10, 力量:8, 悟性:6, 精神力:6, 天命:10, cult:2.5}}]},
   {band:2, q:'rare', name:'海神村供奉', text:'你退居海神村，成了村中供奉。海风温润、晚霞如锦，你在此调养修行，倒也安稳一世。', chainId:'seashen', step:'ss12', chainEnd:true,
    opts:[{label:'就此安居', eff:{体质:4, 悟性:3}}]},
@@ -4705,7 +5024,7 @@ let EVENTS = [
   {band:2, q:'epic', name:'离火炼魂', syn:{cat:'zhi',catMult:1.2}, text:'离火焚尽杂念，你的精神力在烈焰中淬炼得纯净无瑕，感知入微。', chainId:'binghuo', step:'bh4', chainEnd:true,
    opts:[{label:'承此造化', eff:{精神力:10, 悟性:5}}]},
   /* ==== 自创神位前置·神位种子（DL_RS_4.171：99级未获神位传承者有低概率感知神之法则萌芽）==== */
-  {band:3, q:'mythic', minAge:99, maxAge:150, name:'神位种子', text:'你臻至 99 级极限斗罗，却未感应到任何神位传承。在无尽的冥想中，你忽然感知到一丝微弱的神之法则在体内萌芽——这是自创神位的契机。唯有凝聚神位种子，方能以己身之道吸收信仰之力，开辟属于自己的神位。', once:false, req:{lv:99, notGodTitle:true, notSelfGodTrial:true, notSeaInProgress:true, notSelfGodSeed:true}, w:0.3,
+  {band:3, q:'mythic', minAge:99, maxAge:150, name:'神位种子', once:true, text:'你臻至 99 级极限斗罗，却未感应到任何神位传承。在无尽的冥想中，你忽然感知到一丝微弱的神之法则在体内萌芽——这是自创神位的契机。唯有凝聚神位种子，方能以己身之道吸收信仰之力，开辟属于自己的神位。', req:{lv:99, notGodTitle:true, notSelfGodTrial:true, notSeaInProgress:true, notSelfGodSeed:true}, w:0.3,
    opts:[{label:'凝聚神位种子', need:{attr:{天命:70,悟性:70}}, eff:{天命:3,悟性:3}, custom:'selfGodSeed', txt:'你以己身之道为引，成功凝聚出神位种子。自此，你可以吸收信仰之力，踏上自创神位之路。'}, {label:'放弃此念', eff:{}, txt:'你将这丝萌芽压下，继续修炼。'}]},
   /* ==== 事件链·自创神道（DL_RS_4.170 四步事件链：信仰→大道→神位→神器）==== */
   {band:2, q:'legend', name:'信仰之源', text:'你臻至 99 级极限斗罗，欲以己身之道凝聚神位。然自创神位首重信仰之力——你行走天下，拯救苍生、平定战乱、著书立说，以无上功德汇聚万民敬仰。', once:true, chainId:'zichuang', chainStart:true, step:'zc1',
@@ -4738,7 +5057,7 @@ let EVENTS = [
    opts:[{label:'押上重注', need:{money:800}, roll:{chance:0.35, extra:0.05, succ:{金魂币:2000}, succText:'你手气冲天，一夜暴富，赌坊主的脸都绿了。', fail:{金魂币:-1000}, failText:'倾家荡产，你把大半积蓄输了个精光。'}}, {label:'小赌怡情', roll:{chance:0.5, succ:{金魂币:300}, succText:'小赢一笔，见好就收。', fail:{金魂币:-150}, failText:'小输一注，无伤大雅。'}}, {label:'转身离开', eff:{}}]},
   {band:2, q:'rare', minAge:32, maxAge:75, name:'吞服秘丹', text:'一位邋遢老者递给你一枚腥红丹药，言称「服之脱胎换骨，反噬则万劫不复」。', req:{xianMin:1},
    opts:[{label:'冒险吞服', need:{attr:{体质:30}}, roll:{chance:0.35, extra:0.05, succ:{体质:10,悟性:6,力量:6}, succText:'药力如熔岩冲刷四肢百骸，你的根基被重新淬炼，竟是真的神丹！', fail:{体质:-15,力量:-8}, failText:'药性暴烈如刀，你经脉受创，数月动弹不得。', death:0.10, deathText:'为丹药所噬，七窍流血而亡'}}, {label:'婉拒离开', eff:{}}]},
-  {band:2, q:'epic', minAge:40, maxAge:80, name:'秘境夺宝', text:'传闻中的上古秘境入口今日现世，各国强者闻风而动，秘境深处有一桩天大的机缘在等着主人。', req:{xianMin:1, lv:60}, syn:{wq:'ding',wqMult:1.2},
+  {band:2, q:'epic', minAge:40, maxAge:80, name:'秘境夺宝', once:true, text:'传闻中的上古秘境入口今日现世，各国强者闻风而动，秘境深处有一桩天大的机缘在等着主人。', req:{xianMin:1, lv:60}, syn:{wq:'ding',wqMult:1.2},
    opts:[{label:'深入争夺', need:{attr:{力量:45}}, roll:{chance:0.3, extra:0.08, succ:{力量:8,敏捷:6,金魂币:1200,声望:15}, succText:'你力压群雄，夺得秘境至宝，一战成名。', fail:{体质:-20}, failText:'秘境凶险远超想象，你重伤而逃，几乎殒命。', death:0.15, deathText:'陨落于秘境争夺'}}, {label:'外围捡漏', roll:{chance:0.5, succ:{金魂币:400,悟性:3}, succText:'你在外围捡到些边角料，也算不虚此行。', fail:{体质:-4}, failText:'被秘境余波震伤。'}}, {label:'不趟浑水', eff:{}}]},]
 // DL_RS_4.152（防御）：启动即清理 EVENTS 数组空洞（编辑遗留 `},,` 等会插入 undefined），避免 find/filter 遍历崩溃
 EVENTS = EVENTS.filter(e=>!!e);
