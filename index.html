@@ -2046,7 +2046,9 @@ function startYear(){
   // 已获神位传承（95 级及以上）且神考未完成：行动界面附加「迎接神考」按钮，神考与修炼可并行推进
   if(g.godTitle && !g.shenkaoDone){ appendShenkaoBtn(); }
   // DL_RS_4.58：自创神位——99 级极限斗罗且无神位传承者的第三条成神之路，与继承神位二选一
-  if(Math.floor(g.lv)>=99 && !g.godTitle && !g._selfGodTrial && !g._selfGod){ appendSelfGodBtn(); }
+  // DL_RS_4.170：海神九考进行中或已完成时禁止自创神位（九考是独立成神路径，与自创互斥）
+  const _seaInProgress = (g.chain && g.chain.id==='seashen') || g.seaNineDone;
+  if(Math.floor(g.lv)>=99 && !g.godTitle && !g._selfGodTrial && !g._selfGod && !_seaInProgress){ appendSelfGodBtn(); }
 }
 function lifeCapOf(){
   const g=G;
@@ -2202,17 +2204,21 @@ function appendShenkaoBtn(){
 function appendSelfGodBtn(){
   const g=G, a=g.a;
   const tried = !!g._selfGodTrial;
-  const ok = !tried && selfGodOk();
+  // DL_RS_4.170：海神九考进行中或已完成时禁用自创神位按钮
+  const seaBlocked = (g.chain && g.chain.id==='seashen') || !!g.seaNineDone;
+  const hasSeed = !!g._selfGodSeed;
+  const ok = !tried && !seaBlocked && hasSeed && selfGodOk();
   const sum = a.力量 + a.敏捷 + a.体质 + a.精神力;
   const btns = $('actionBtns');
   const b = document.createElement('button');
   b.className = 'btn ' + (ok ? 'primary' : 'btn-locked');
-  b.textContent = ok ? `自创神位（成功率${Math.round(selfGodP()*100)}%）` : (tried ? '自创神位（已倾覆）' : '自创神位');
-  b.title = '以己身之道凝聚神格、自创神位——要求更在继承神位之上';
+  b.textContent = ok ? `自创神位（成功率${Math.round(selfGodP()*100)}%）` : (seaBlocked ? '自创神位（海神九考中）' : (tried ? '自创神位（已倾覆）' : (!hasSeed ? '自创神位（需神位种子）' : '自创神位')));
+  b.title = seaBlocked ? '海神九考进行中或已完成——此路与海神传承互斥，不可自创神位' : (!hasSeed ? '需先凝聚「神位种子」——99级且未感应神位传承时，99-150岁间有低概率触发神位种子事件' : '以己身之道凝聚神格、自创神位——要求更在继承神位之上');
   if(!ok){
     b.disabled = true;
     b.title = tried ? '神格已散，此生再无凝聚神格之望' : `神格资历未臻圆满：需 四维综合≥300（当前${Math.floor(sum)}）、天命≥75、悟性≥75、战力≥150000（当前${Math.floor(power())}）`;
-  } else { b.onclick = ()=>trySelfGod(); }
+  } else { b.onclick = ()=>{ // DL_RS_4.170：自创神位改为四步事件链——点击后开始「自创神道」链，而非直接判定成败
+G._selfGodTrial = true; G.chain = {id:'zichuang', step:0}; const ev = chainNextEvent(G.chain); if(ev){ showEvent(ev); } else { addLog('自创神道开启……','note'); } renderActions(); }; }
   btns.appendChild(b);
   $('eventBox').innerHTML = tried
     ? `<div class="muted">你已倾尽一生尝试自创神位——<b>神格崩散，此生再无凝聚神格之望</b>，唯余修炼至寿终。</div>`
@@ -2388,7 +2394,8 @@ const ORG_BONUS = {
   '象甲宗': {trend:{体质:1.14}, desc:'象甲护体·体质成长+14%'},
   '白虎宗': {trend:{力量:1.14}, desc:'白虎凶威·力量成长+14%'},
   '风剑宗': {trend:{敏捷:1.14}, desc:'风剑迅捷·敏捷成长+14%'},
-  '天南宗': {trend:{力量:1.06,敏捷:1.06,体质:1.06,精神力:1.06}, desc:'中庸之道·全属性成长+6%'}
+  '天南宗': {trend:{力量:1.06,敏捷:1.06,体质:1.06,精神力:1.06}, desc:'中庸之道·全属性成长+6%'},
+  '自建宗门': {prestigeMult:1.6, wuMult:1.10, trend:{力量:1.05,敏捷:1.05,体质:1.05,精神力:1.05}, desc:'宗主之尊·声望获取+60%、悟性成长+10%、全属性成长+5%'}
 };
 function orgTrend(k){
   if(!G || !G.org || !ORG_BONUS[G.org]) return 1;
@@ -2581,8 +2588,8 @@ function genBeast(ele, y){
    十万年魂环（≥10 万年）凶名赫赫，需强横肉身方可吸收（见 resolveHunt 体质门槛）。 */
 function ringYear(idx, choice, prevArr){
   const base = [
-    [80,300],[300,800],[800,2000],[2000,6000],[6000,12000],
-    [12000,30000],[30000,60000],[60000,80000],[80000,100000]
+    [100,400],[400,1000],[1000,3000],[3000,8000],[8000,15000],
+    [15000,40000],[40000,80000],[80000,120000],[100000,200000]
   ][Math.min(idx,8)] || [1000,5000];
   const mul = choice==='稳'?0.7 : choice==='中'?1.0 : 1.4;
   let y = Math.round(rnd(base[0], base[1]) * mul);
@@ -2594,8 +2601,8 @@ function ringYear(idx, choice, prevArr){
 }
 function ringYearRange(idx, choice){ // DL_RS_4.113：猎魂三档预估年份区间（与 ringYear 同源倍率）
   const base = [
-    [80,300],[300,800],[800,2000],[2000,6000],[6000,12000],
-    [12000,30000],[30000,60000],[60000,80000],[80000,100000]
+    [100,400],[400,1000],[1000,3000],[3000,8000],[8000,15000],
+    [15000,40000],[40000,80000],[80000,120000],[100000,200000]
   ][Math.min(idx,8)] || [1000,5000];
   const mul = choice==='稳'?0.7 : choice==='中'?1.0 : 1.4;
   return [Math.round(base[0]*mul), Math.round(base[1]*mul)];
@@ -3020,6 +3027,25 @@ function genSelfGodTitle(){
   // 4. 拼「神」：基底已以「神」结尾则直接采用（避免「冰神权杖」→「冰神神」）
   return /神$/.test(base) ? base : base + '神';
 }
+// DL_RS_4.170：自创神位四步事件链终点结算——根据最终属性/战力判定神位等级，不再直接神王
+function selfGodFinal(){
+  const g=G, a=g.a;
+  const sum = a.力量+a.敏捷+a.体质+a.精神力;
+  const pw = power();
+  let tier = 1;
+  if(pw >= 500000 && sum >= 500 && a.天命 >= 90){ tier = 4; }
+  else if(pw >= 350000 && sum >= 400){ tier = 3; }
+  else if(pw >= 200000){ tier = 2; }
+  const tierName = {1:'三级神',2:'二级神',3:'一级神·主神',4:'神王'}[tier];
+  const title = genSelfGodTitle();
+  g.godTitle = '自创·'+title;
+  g.god = null;
+  g._selfGod = true;
+  g._selfGodTier = tier;
+  g.achievements.push('自创神位');
+  addLog('<b>自创神位！</b>信仰之力与大道领悟圆满，你以己身之道凝聚神格——自创神位「'+title+'」，神位等级：<b>'+tierName+'</b>！','good');
+  ascend();
+}
 function trySelfGod(){
   const g=G, a=g.a;
   if(g._selfGodTrial) return false; // 已尝试过（成或败），不再触发
@@ -3065,7 +3091,7 @@ function ascend(){
     : (ARTIFACT_OF[g.godTitle] || (g.godTitle + '神器'));
   // 神装四维增幅（成神级奖励）：神位越高级，神器威能越盛（自创神位超越一切既定神位，增幅最高）
   const tierB = g._selfGod
-    ? [48,40,48,40]
+    ? ({1:[22,18,22,18],2:[28,24,28,24],3:[36,30,36,30],4:[48,40,48,40]}[g._selfGodTier || 2])
     : (g.god && g.god.tier)
       ? {1:[18,14,18,14], 2:[22,18,22,18], 3:[28,24,28,24], 4:[36,30,36,30]}[g.god.tier]
       : [18,14,18,14];
@@ -3080,7 +3106,7 @@ function ascend(){
   // DL_RS_4.97：成神档位按继承神位等级定档（贴合原著神位分级）——
   // 神王级（修罗/善良/邪恶/毁灭/生命）→ 神界神王；一级神（主神）→ 神界主神；
   // 二级神 → 神界二级神祇；三级神 → 神界三级神祇；自创神位按神王计。
-  const godTier = G._selfGod ? 4 : (GODS[G.godTitle] ? GODS[G.godTitle].tier : 0);
+  const godTier = G._selfGod ? (G._selfGodTier || 2) : (GODS[G.godTitle] ? GODS[G.godTitle].tier : 0); // DL_RS_4.170：自创神位按zc4结算等级判定，默认二级神
   if(godTier >= 4){
     addLog('神光万丈，你以神王级神位执掌神界权柄—— <b>登临神王之位</b>！','good');
     finishLife('神王');
@@ -3112,14 +3138,17 @@ const CHAINS = {
   landian: {name:'蓝电龙脉', desc:'在蓝电霸王龙家族淬体觉醒，唤醒远古龙魂', steps:['ld1','ld2','ld3','ld4']},
   seashen: {name:'海神岛试炼', desc:'漂流至海神岛，经海神岛考核获九考资格——神光淬体与观潮悟道两条路终又交汇，九考尽通可承海神之位', steps:['ss1','sea0','ss2','ss3','ss3b','ss4','ss5','ss6','ss7','ss8','ss9','ss10','ss11','ss12']},
   binghuo: {name:'冰火两仪眼', syn:{cat:'zhi',catMult:1.3}, desc:'寻得冰火两仪眼，冰泉淬体与火泉炼魂二择其一', steps:['bh1','bh2','bh3','bh4']},
-  xingluo: {name:'星罗权谋', desc:'入星罗帝国宫廷卷入夺嫡之局，从龙之功与夺嫡风波两条截然不同的路', steps:['xl1','xl2','xl3','xl4']}
+  xingluo: {name:'星罗权谋', desc:'入星罗帝国宫廷卷入夺嫡之局，从龙之功与夺嫡风波两条截然不同的路', steps:['xl1','xl2','xl3','xl4']},
+  zichuang: {name:'自创神道', desc:'以己身之道凝聚神格——积累信仰、领悟大道、凝聚神位、孕育神器，四步功成则成就万古未有之神', steps:['zc1','zc2','zc3','zc4']}
 };
 function chainNextEvent(chain){
   if(!chain) return null;
   const def = CHAINS[chain.id];
   if(!def || chain.step >= def.steps.length) return null;
   const evId = def.steps[chain.step];
-  return EVENTS.find(e=>e && e.chainId===chain.id && e.step===evId);
+  const ev = EVENTS.find(e=>e && e.chainId===chain.id && e.step===evId);
+  if(ev && ev.req && !passReq(ev)) return null; // DL_RS_4.172：事件链等级/属性门槛——不满足则暂停链，等下一年
+  return ev;
 }
 
 function pickWeighted(list){
@@ -3150,6 +3179,10 @@ function passReq(e){
   if(r.org && g.org!==r.org) return false;
   if(r.hasOrg && !g.org) return false;
   if(r.notOrg && g.org) return false;   // DL_RS_4.49：要求未加入任何势力（武魂殿招揽与宗门互斥）
+  if(r.notGodTitle && g.godTitle) return false;           // DL_RS_4.171：要求未获得神位传承（自创神位前置）
+  if(r.notSelfGodTrial && g._selfGodTrial) return false;  // DL_RS_4.171：要求未尝试过自创神位
+  if(r.notSeaInProgress && ((g.chain && g.chain.id==='seashen') || g.seaNineDone)) return false; // DL_RS_4.171：海神九考未进行中
+  if(r.notSelfGodSeed && g._selfGodSeed) return false;     // DL_RS_4.171：要求未凝聚神位种子（神位种子事件只触发一次）
   if(r.spouse && !g.spouse) return false;
   if(r.master && !g.master) return false;
   if(r.prestige && g.prestige < r.prestige) return false;
@@ -3209,6 +3242,7 @@ let pb = EVENTS.filter(e=>e && e.band===band && e.q===qq
 && !(e.once && g.onceUsed[e.name])
 && !(e.ex && g.exclusiveUsed[e.ex])
 && !(e.chainId && !e.chainStart)   // 链环节（非起点）只由链驱动
+  && !(e.chainId==='zichuang' && e.chainStart)  // DL_RS_4.171：自创神位链起点只由「自创神位」按钮触发，不可随机抽取
 && !(e.chainId && e.chainStart && g.chainDone && g.chainDone[e.chainId])  // 链起点 once
 && (!e.needOrg || g.org===e.needOrg)
 && passReq(e));
@@ -3573,6 +3607,10 @@ function resolveEvent(ev, idx){
     if(!g.achievements.includes('逆天机缘')) g.achievements.push('逆天机缘');
     addLog(`<b>天命眷顾！</b>${o.heroTxt||''}${o.fortune.years} 年内修炼速度 <b>×${g._fortune.mult}</b>——你仿佛被命运选中，直奔传说而去！`,'good');
   }
+  // DL_RS_4.170：自创神位链终点结算——四步完成后判定神位等级并成神
+  if(o.custom==='selfGodFinal'){ selfGodFinal(); return; }
+  if(o.custom==='selfGodSeed'){ G._selfGodSeed = true; addLog('—— 神位种子凝聚成功！你已具备自创神位的根基，可在行动界面选择「自创神位」开启四步神道。','good'); }
+  if(o.joinOrg){ joinOrg(o.joinOrg); } // DL_RS_4.170：建宗立派事件——选择后加入自建宗门
   advanceChain(ev, o);
   clampAll();
   if(!_godBlock) endYear(); // DL_RS_4.95（全面审查）：神位传承三档选择占用本年，选档/婉拒后由 renderActions 继续当年行动
@@ -3872,12 +3910,19 @@ function ringLevel(y){
 function ringSkillP(i){ return 40 + (i%9)*55; }
 /* 魂环吸收极限：体质/精神力/武魂品质决定可承受上限（原著肉身不足会反噬） */
 function maxRingCap(idx){
-  const base = [500,1000,3000,6000,12000,25000,40000,70000,150000][Math.min(idx,8)]||150000;
+  // DL_RS_4.170：base 与猎魂年份上限一致（ringYear 第9环8-10万年），避免承受上限远超实际可吸收
+  const base = [300,800,2000,6000,12000,30000,60000,80000,100000][Math.min(idx,8)]||100000;
   const a=G.a;
-  const m = (1 + Math.max(0,(a.体质-5))*0.05 + Math.max(0,(a.精神力-5))*0.03);
+  // 体质/精神力超过100后加成减半，防止后期战斗四维无上限膨胀
+  const tz = a.体质 > 100 ? 100 + (a.体质-100)*0.5 : a.体质;
+  const js = a.精神力 > 100 ? 100 + (a.精神力-100)*0.5 : a.精神力;
+  // 加成系数大幅降低（体质0.015、精神力0.008），使承受上限约为实际可猎最高的1.5-2倍
+  const m = (1 + Math.max(0,(tz-5))*0.015 + Math.max(0,(js-5))*0.008);
   const qm = {fei:0.7, pu:0.85, you:1.0, ding:1.15, super:1.22, shen:1.3};
   const q = (G.soul && G.soul.quality) ? (qm[G.soul.quality]||1.0) : 1.0;
-  return Math.round(base * m * q);
+  // 硬上限按比例调整——第9环最高30万年（约为实际可猎最高14万年的2倍），超越需赌「超越极限」
+  const hardCap = [1000,2000,5000,15000,30000,60000,100000,150000,300000][Math.min(idx,8)];
+  return Math.min(hardCap, Math.round(base * m * q));
 }
 function ringTag(r, i){
   const L = ringLevel(r.y);
@@ -4306,8 +4351,8 @@ let EVENTS = [
 {band:1, q:'common', minAge:28, name:'瓶颈顿悟', text:'魂力积攒到临界，却像撞上一堵无形的墙，任你苦修多年，纹丝不动。越是心急，那墙便越厚重。',
    opts:[{label:'入世历练', eff:{悟性:4, 力量:3}}, {label:'死磕闭关', need:{attr:{悟性:25}}, roll:{chance:0.4, succ:{悟性:5}, succText:'闭关三年，一朝顿悟。', fail:{}, failText:'越急越乱，毫无进展。'}}]},
   /* ==== 白 · 中年 / 老年 ==== */
-  {band:2, q:'uncommon', minAge:32, name:'建宗立派', text:'功成名就的你，动了开宗立派的念头。', req:{lv:35, money:500, minQuality:'you'},
-   opts:[{label:'开宗立派', eff:{家境:-6, 声望:12}}, {label:'独善其身', eff:{悟性:2}}]},
+  {band:2, q:'rare', minAge:32, name:'建宗立派', text:'功成名就的你，动了开宗立派的念头——以一己之力创立宗门，自此宗主之尊，自由度高，全方面发展。', req:{lv:70, money:1000, minQuality:'ding', notOrg:true},
+   opts:[{label:'开宗立派', eff:{家境:-10, 声望:20}, joinOrg:'自建宗门'}, {label:'独善其身', eff:{悟性:3}}]},
   {band:2, q:'uncommon', minAge:35, name:'收徒传道', text:'有少年慕名而来，跪求拜师。', req:{prestige:10, minQuality:'pu', lv:30},
    opts:[{label:'收下弟子', need:{attr:{悟性:18}}, eff:{悟性:3, 声望:5}}, {label:'婉拒', eff:{}}]},
   {band:2, q:'uncommon', minAge:45, name:'突破之机', text:'魂力在丹田翻涌，你隐约触碰到下一境界的门槛，只差临门一脚——却怎么也迈不过去。',
@@ -4562,27 +4607,27 @@ let EVENTS = [
    /* DL_RS_4.148 原著九考文案 · DL_RS_4.149 海神九考前置资格考核 */
    {band:2, q:'epic', name:'海神岛考核', text:'大祭司亲自主持海神九考资格考核——唯天赋卓绝、心性澄澈者，方有资格觐见海神之辉光，一试神考。', chainId:'seashen', step:'sea0',
    opts:[{label:'以无双体质震撼全场', need:{attr:{体质:50}}, eff:{体质:3}, chainGoto:'ss2', evSet:'seaQualified'}, {label:'以卓绝悟性赢得认可', need:{attr:{悟性:48}}, eff:{悟性:3}, chainGoto:'ss2', evSet:'seaQualified'}, {label:'以澄澈心智打动祭司', need:{attr:{精神力:48}}, eff:{精神力:3}, chainGoto:'ss2', evSet:'seaQualified'}, {label:'实力不济，暂离海神岛', chainEnd:true}]},
-    {band:2, q:'epic', name:'海神九考·第一考·穿越双倍海神之光', text:'祭司宣布你获准参加海神九考。第一考「穿越双倍海神之光」——顶着海神之光的无上威压，登上海神峰三百三十三级神阶，向海神证明你的坚毅。', chainId:'seashen', step:'ss2',
+    {band:2, q:'epic', name:'海神九考·第一考·穿越双倍海神之光', text:'祭司宣布你获准参加海神九考。第一考「穿越双倍海神之光」——顶着海神之光的无上威压，登上海神峰三百三十三级神阶，向海神证明你的坚毅。', chainId:'seashen', step:'ss2', req:{lv:40},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'以肉身硬抗神光，步步登阶', need:{attr:{体质:68}}, eff:{cult:1.2}, chainGoto:'ss3'}, {label:'观潮悟道，借势而上', need:{attr:{悟性:62}}, eff:{cult:1.2}, chainGoto:'ss3b'}, {label:'量力而行，入海神村供奉', eff:{}, chainGoto:'ss12'}]},
-  {band:2, q:'epic', name:'神光淬体', text:'你以肉身硬抗神光，一步步踏上三百三十三级神阶，神辉如熔岩冲刷骨髓，血肉在剧痛中寸寸蜕变——海神之力在你体内烙下淬炼的印记。', chainId:'seashen', step:'ss3',
+  {band:2, q:'epic', name:'神光淬体', text:'你以肉身硬抗神光，一步步踏上三百三十三级神阶，神辉如熔岩冲刷骨髓，血肉在剧痛中寸寸蜕变——海神之力在你体内烙下淬炼的印记。', chainId:'seashen', step:'ss3', req:{lv:40},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'承受淬炼，迈向第二考', eff:{体质:6, 力量:4, cult:1.5}, chainGoto:'ss4'}]},
-  {band:2, q:'epic', name:'观潮悟道', text:'你不与神光硬撼，反而于神阶之畔闭目观潮——潮起潮落与神光明灭暗合道韵，一缕灵光落入心湖，你悟出了驾驭神光的一线契机。', chainId:'seashen', step:'ss3b',
+  {band:2, q:'epic', name:'观潮悟道', text:'你不与神光硬撼，反而于神阶之畔闭目观潮——潮起潮落与神光明灭暗合道韵，一缕灵光落入心湖，你悟出了驾驭神光的一线契机。', chainId:'seashen', step:'ss3b', req:{lv:40},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'以此悟道，迈向第二考', eff:{悟性:6, 精神力:4, cult:1.5}, chainGoto:'ss4'}]},
-  {band:2, q:'epic', name:'海神九考·第二考·突破环形封锁', text:'第二考「突破环形封锁」——环形海中海魂兽环伺，不得伤其一命、不可动用魂环技能，仅凭身法魂力突至对岸，方显斗者仁心与真本事。', chainId:'seashen', step:'ss4',
+  {band:2, q:'epic', name:'海神九考·第二考·突破环形封锁', text:'第二考「突破环形封锁」——环形海中海魂兽环伺，不得伤其一命、不可动用魂环技能，仅凭身法魂力突至对岸，方显斗者仁心与真本事。', chainId:'seashen', step:'ss4', req:{lv:50},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'以神御浪，游走突进', need:{attr:{精神力:70}}, eff:{精神力:5, 悟性:4, cult:1.5}, chainGoto:'ss5'}, {label:'借潮身退，稳中求进', eff:{体质:4, 悟性:3, cult:1.5}, chainGoto:'ss5'}]},
-  {band:2, q:'epic', name:'海神九考·第三考·潮汐练体', text:'第三考「潮汐练体」——立于沉银柱上，任十二时辰海浪拍打淬炼肉身，纹丝不动方显根基之固。', chainId:'seashen', step:'ss5',
+  {band:2, q:'epic', name:'海神九考·第三考·潮汐练体', text:'第三考「潮汐练体」——立于沉银柱上，任十二时辰海浪拍打淬炼肉身，纹丝不动方显根基之固。', chainId:'seashen', step:'ss5', req:{lv:60},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'承受潮汐淬炼', eff:{体质:7, 力量:5, cult:1.7}, chainGoto:'ss6'}]},
-  {band:2, q:'epic', name:'海神九考·第四考·巅峰鲨鲸之战', text:'第四考「巅峰鲨鲸之战」——随魔魂大白鲨群出征，于风暴怒涛中斩杀邪魔虎鲸王（十万年魂兽），血染沧海，立下护海之功。', chainId:'seashen', step:'ss6',
+  {band:2, q:'epic', name:'海神九考·第四考·巅峰鲨鲸之战', text:'第四考「巅峰鲨鲸之战」——随魔魂大白鲨群出征，于风暴怒涛中斩杀邪魔虎鲸王（十万年魂兽），血染沧海，立下护海之功。', chainId:'seashen', step:'ss6', req:{lv:70},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'随鲨群出战，斩杀虎鲸王', eff:{悟性:6, 精神力:6, cult:1.7}, chainGoto:'ss7'}]},
-  {band:2, q:'epic', name:'海神九考·第五考·挑战七圣柱守护者', text:'第五考「挑战七圣柱守护者」——三十六时辰内连战七位圣柱守护者，神光入魂、心神不坠，一鼓作气登上海神峰顶。', chainId:'seashen', step:'ss7',
+  {band:2, q:'epic', name:'海神九考·第五考·挑战七圣柱守护者', text:'第五考「挑战七圣柱守护者」——三十六时辰内连战七位圣柱守护者，神光入魂、心神不坠，一鼓作气登上海神峰顶。', chainId:'seashen', step:'ss7', req:{lv:75},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'连战七圣柱守护者', eff:{精神力:7, 体质:4, 悟性:4, cult:1.8}, chainGoto:'ss8'}]},
-  {band:2, q:'epic', name:'海神九考·第六考·一炷香考验', text:'第六考「一炷香考验」——大祭司波塞西亲自出手，你须在其神威下坚持一炷香而不坠，稍显退缩便前功尽弃。', chainId:'seashen', step:'ss8',
+  {band:2, q:'epic', name:'海神九考·第六考·一炷香考验', text:'第六考「一炷香考验」——大祭司波塞西亲自出手，你须在其神威下坚持一炷香而不坠，稍显退缩便前功尽弃。', chainId:'seashen', step:'ss8', req:{lv:80},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'于神威下硬撑一炷香', eff:{力量:7, 敏捷:5, cult:1.9}, chainGoto:'ss9'}]},
-  {band:2, q:'epic', name:'海神九考·第七考·拔出海神三叉戟', text:'第七考「拔出海神三叉戟」——海神三叉戟重逾十万八千斤，唯有得海神认可者方可擎起，凡俗之力只会被神锋反噬。', chainId:'seashen', step:'ss9',
+  {band:2, q:'epic', name:'海神九考·第七考·拔出海神三叉戟', text:'第七考「拔出海神三叉戟」——海神三叉戟重逾十万八千斤，唯有得海神认可者方可擎起，凡俗之力只会被神锋反噬。', chainId:'seashen', step:'ss9', req:{lv:85},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'擎起海神三叉戟', eff:{体质:8, 力量:5, cult:1.9}, chainGoto:'ss10'}]},
-  {band:2, q:'epic', name:'海神九考·第八考·斩杀深海魔鲸王', text:'第八考「斩杀深海魔鲸王」——集齐一身魂骨、武魂臻至九环之巅，于深海之渊独战深海魔鲸王（百万年魂兽），铸就登神路上最后一道试炼。', chainId:'seashen', step:'ss10',
+  {band:2, q:'epic', name:'海神九考·第八考·斩杀深海魔鲸王', text:'第八考「斩杀深海魔鲸王」——集齐一身魂骨、武魂臻至九环之巅，于深海之渊独战深海魔鲸王（百万年魂兽），铸就登神路上最后一道试炼。', chainId:'seashen', step:'ss10', req:{lv:90},  // DL_RS_4.172：海神九考等级门槛
    opts:[{label:'独战深海魔鲸王', eff:{悟性:7, 天命:4, cult:2.0}, chainGoto:'ss11'}]},
-  {band:2, q:'epic', name:'海神九考·第九考·海神传承', text:'第九考「海神传承」——通过七情考验，重塑海神之心，神光如海潮倾泻而下，海神虚影于光中浮现，向你投来认可的目光。九考尽通，你已具备承接海神神位的资格。', chainId:'seashen', step:'ss11', chainEnd:true, markDone:'seaNineDone',
+  {band:2, q:'epic', name:'海神九考·第九考·海神传承', text:'第九考「海神传承」——通过七情考验，重塑海神之心，神光如海潮倾泻而下，海神虚影于光中浮现，向你投来认可的目光。九考尽通，你已具备承接海神神位的资格。', chainId:'seashen', step:'ss11', req:{lv:95},  // DL_RS_4.172：海神九考等级门槛 chainEnd:true, markDone:'seaNineDone',
    opts:[{label:'承接海神之位', eff:{体质:10, 力量:8, 悟性:6, 精神力:6, 天命:10, cult:2.5}}]},
   {band:2, q:'rare', name:'海神村供奉', text:'你退居海神村，成了村中供奉。海风温润、晚霞如锦，你在此调养修行，倒也安稳一世。', chainId:'seashen', step:'ss12', chainEnd:true,
    opts:[{label:'就此安居', eff:{体质:4, 悟性:3}}]},
@@ -4595,6 +4640,18 @@ let EVENTS = [
    opts:[{label:'承此造化', eff:{体质:10, 力量:6}}]},
   {band:2, q:'epic', name:'离火炼魂', syn:{cat:'zhi',catMult:1.2}, text:'离火焚尽杂念，你的精神力在烈焰中淬炼得纯净无瑕，感知入微。', chainId:'binghuo', step:'bh4', chainEnd:true,
    opts:[{label:'承此造化', eff:{精神力:10, 悟性:5}}]},
+  /* ==== 自创神位前置·神位种子（DL_RS_4.171：99级未获神位传承者有低概率感知神之法则萌芽）==== */
+  {band:3, q:'mythic', minAge:99, maxAge:150, name:'神位种子', text:'你臻至 99 级极限斗罗，却未感应到任何神位传承。在无尽的冥想中，你忽然感知到一丝微弱的神之法则在体内萌芽——这是自创神位的契机。唯有凝聚神位种子，方能以己身之道吸收信仰之力，开辟属于自己的神位。', once:false, req:{lv:99, notGodTitle:true, notSelfGodTrial:true, notSeaInProgress:true, notSelfGodSeed:true}, w:0.3,
+   opts:[{label:'凝聚神位种子', need:{attr:{天命:70,悟性:70}}, eff:{天命:3,悟性:3}, custom:'selfGodSeed', txt:'你以己身之道为引，成功凝聚出神位种子。自此，你可以吸收信仰之力，踏上自创神位之路。'}, {label:'放弃此念', eff:{}, txt:'你将这丝萌芽压下，继续修炼。'}]},
+  /* ==== 事件链·自创神道（DL_RS_4.170 四步事件链：信仰→大道→神位→神器）==== */
+  {band:2, q:'legend', name:'信仰之源', text:'你臻至 99 级极限斗罗，欲以己身之道凝聚神位。然自创神位首重信仰之力——你行走天下，拯救苍生、平定战乱、著书立说，以无上功德汇聚万民敬仰。', once:true, chainId:'zichuang', chainStart:true, step:'zc1',
+   opts:[{label:'拯救苍生于水火', need:{attr:{体质:80}}, eff:{天命:5,体质:3}, chainGoto:'zc2'}, {label:'平定一方战乱', need:{attr:{力量:80}}, eff:{天命:5,力量:3}, chainGoto:'zc2'}, {label:'著书立说教化万民', need:{attr:{悟性:80}}, eff:{悟性:3,精神力:3}, chainGoto:'zc2'}]},
+  {band:2, q:'legend', name:'信仰凝聚', text:'你的声名远播，信仰之力从涓涓细流汇聚成汪洋大海。万千生灵的供奉与敬仰化为实质的神力，在你周身流转，滋养着即将诞生的神格。', chainId:'zichuang', step:'zc2',
+   opts:[{label:'广建神殿，传播信仰', eff:{天命:8,精神力:3}, chainGoto:'zc3'}, {label:'化身千万，庇佑信徒', eff:{精神力:5,体质:5}, chainGoto:'zc3'}, {label:'以信仰炼体，强化肉身', eff:{体质:8,力量:5}, chainGoto:'zc3'}]},
+  {band:2, q:'mythic', name:'大道领悟', text:'信仰之力已足，然神位的本质是对天地大道的领悟。你闭关参悟宇宙本源、天地法则，以无上智慧触及神之领域，神格雏形在识海中缓缓显现。', chainId:'zichuang', step:'zc3',
+   opts:[{label:'感悟天地法则', need:{attr:{悟性:90}}, eff:{悟性:8,精神力:5}, chainGoto:'zc4'}, {label:'以武魂之道印证大道', eff:{力量:5,敏捷:5,体质:3,精神力:3}, chainGoto:'zc4'}, {label:'神游太虚，见证宇宙生灭', need:{attr:{精神力:90}}, eff:{精神力:8,悟性:5}, chainGoto:'zc4'}]},
+  {band:2, q:'mythic', name:'神位凝聚', text:'信仰之力与大道领悟在你体内达到临界点——神位自行凝聚！专属神器孕育而生！你以己身之道立神位，成就万古未有之神！', chainId:'zichuang', step:'zc4', chainEnd:true,
+   opts:[{label:'以己身之道，凝聚神位！', eff:{}, custom:'selfGodFinal'}]},
   /* ==== 事件链·星罗权谋（DL_RS_4.101 多分支链）==== */
   {band:2, q:'epic', minAge:35, maxAge:65, name:'星罗宫廷', text:'你名声在外，被星罗帝国招入宫廷。庙堂之上暗流涌动，太子与四皇子争储正烈，站队成了唯一的生存之道。', once:true, chainId:'xingluo', chainStart:true, step:'xl1', w:0.26, req:{lv:45, xianMin:1, prestige:80},
    opts:[{label:'谨言慎行，静观其变', eff:{}}]},
@@ -4675,7 +4732,7 @@ function autoAct(){
     
     // DL_RS_4.63：事件渲染已保证存在无门槛选项（含「就此作罢」兜底），此处必有可用按钮——
     // 不强制解除禁用（那会绕过属性门槛）；防御兜底点第一个（若全禁用则为「作罢」选项）
-    if(!target) target = btns[0];
+    if(!target) target = btns.find(b=>!b.disabled) || btns[0];
     target.click(); return true;
   } else if(ab){
     const btns = [...ab.querySelectorAll('button')];
