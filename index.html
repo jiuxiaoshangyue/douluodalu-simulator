@@ -1288,7 +1288,7 @@ const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
 function rr(v){ return Math.round(v*100)/100; }
 function bar(attr, val, cls){
   // 属性仅显示名称+数值（无横条）；战斗四维不设上限，不做百分比条
-  return `<div class="attrbox ${cls||''}"><div class="nm">${attr}</div><div class="vl">${Math.floor(val)}</div></div>`;
+  return `<div class="attrbox ${cls||''}"><div class="nm">${attr}</div><div class="vl">${typeof val === 'string' ? val : Math.floor(val)}</div></div>`;
 }
 function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -1664,6 +1664,8 @@ function rollAttrs(){
   const a = {
     体质: ri(0,10), 悟性: ri(5,70), 力量: ri(0,10), 敏捷: ri(0,10), 精神力: ri(0,10), 家境: ri(5,70), 天命: ri(5,70)
   };
+  // 保存基础随机值（用于开局显示"总值（基础+加成）"）
+  const _base = {体质:a.体质, 悟性:a.悟性, 力量:a.力量, 敏捷:a.敏捷, 精神力:a.精神力, 家境:a.家境, 天命:a.天命};
   // 轮回殿永久加点：出生属性加成（力量/敏捷/体力/精神力 +1/点，悟性 +0.5/点）
   a.力量 += lunhuiVal('liLiang'); a.敏捷 += lunhuiVal('minJie');
   a.体质 += lunhuiVal('tiLi');    a.精神力 += lunhuiVal('jingShen');
@@ -1673,8 +1675,11 @@ function rollAttrs(){
   // 战斗四维不设上限（仅保底 0），其余三维保持 1-100
   FIGHT_ATTRS.forEach(k=>{ a[k]=Math.max(0, a[k]); });
   OTHER_ATTRS.forEach(k=>{ a[k]=clamp(a[k],1,100); });
+  // 计算加成值 = 总值 - 基础值（clamp后可能略有差异，取近似值）
+  const _bonus = {};
+  ATTRS.forEach(k=>{ _bonus[k] = Math.max(0, Math.round((a[k] - _base[k]) * 10) / 10); });
   const _rp = rollPersona();
-  return {a, cultBonus:0, gender:_rp.gender, name:_rp.name, personality:_rp.personality, evFlags:{}}; // DL_RS_4.97：开局随机性别 · DL_RS_4.151：随机姓名与性格
+  return {a, cultBonus:0, gender:_rp.gender, name:_rp.name, personality:_rp.personality, evFlags:{}, _attrBase:_base, _attrBonus:_bonus};
 }
 /* DL_RS_4.116：来世天赋（轮回殿全满解锁，终局娱乐玩法）——
    定制武魂（觉醒品质保底，越高级越贵）/ 指定命格（本局必得）/ 指定一次高品质事件（本局必触发） */
@@ -1740,7 +1745,7 @@ function renderGift(){
 function renderRoll(){
   const ag = $('rollAttrs'); ag.innerHTML='';
   const gdEl = $('rollGender'); if(gdEl) gdEl.innerHTML = `<span style="margin-right:12px">姓名 <b style="font-size:15px;color:var(--gold2)">${G.name||'无名'}</b></span><span style="margin-right:12px">性别 <b style="font-size:15px;color:var(--gold2)">${G.gender||'男'}</b></span><span>性格 <b style="font-size:15px;color:var(--gold2)">${G.personality||''}</b></span>`;
-  ATTRS.forEach(k=>{ ag.insertAdjacentHTML('beforeend', bar(k, G.a[k], k==='精神力'?'psi':'')); });
+  ATTRS.forEach(k=>{ const _base = G._attrBase ? G._attrBase[k] : null; const _bonus = G._attrBonus ? G._attrBonus[k] : null; const _val = Math.round(G.a[k]*10)/10; const _disp = (_base !== null && _bonus !== null && _bonus > 0) ? _val + '（' + Math.round(_base*10)/10 + '+' + _bonus + '）' : _val; ag.insertAdjacentHTML('beforeend', bar(k, _disp, k==='精神力'?'psi':'') ); });
   const fam = G.a.家境;
   let bg='山村贫家', tip='家中温饱难继，修炼全凭天资。';
   if(fam<20){bg='山村贫家'; tip='饭都未必吃饱，觉醒个像样武魂已是奢望。'}
