@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head>
+<html lang="zh-CN">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>斗罗人生模拟器 · 命运与轮回</title>
@@ -197,258 +198,175 @@
   @media(max-width:340px){
     .attrgrid{grid-template-columns:1fr}
   }
-/* DL_RS_4.169：高品质事件触发反馈——发光动画 */
-.eventcard.high-quality{animation:evGlow 1.5s ease-in-out infinite;border-width:2px}
-.eventcard.hq-rare{border-color:#c39bd3!important;box-shadow:0 0 12px rgba(195,155,211,0.45)}
-.eventcard.hq-epic{border-color:#a8b0c0!important;box-shadow:0 0 12px rgba(168,176,192,0.45)}
-.eventcard.hq-legend{border-color:#ff6b6b!important;box-shadow:0 0 14px rgba(255,107,107,0.55)}
-.eventcard.hq-mythic{border-color:#ffd700!important;box-shadow:0 0 18px rgba(255,215,0,0.65)}
-@keyframes evGlow{0%,100%{opacity:1}50%{opacity:0.82}}
+
+/* DL_RS_4.172：历程事件按品质显示颜色（与图鉴一致） */
+.entry.ev-common { color: #d9e2f5; }
+.entry.ev-uncommon { color: #e6c940; }
+.entry.ev-rare { color: #c39bd3; }
+.entry.ev-epic { color: #a8b0c0; }
+.entry.ev-legend { color: #ff6b6b; }
+.entry.ev-mythic { color: #ffd700; font-weight: 600; }
+
+/* DL_RS_4.166：高品质事件卡片发光效果 */
+.eventcard.high-quality {
+    animation: evGlow 1.8s ease-in-out infinite;
+    border-width: 2px;
+}
+.eventcard.hq-rare {
+    border-color: #c39bd3;
+    box-shadow: 0 0 12px rgba(195, 155, 211, 0.45);
+}
+.eventcard.hq-epic {
+    border-color: #a8b0c0;
+    box-shadow: 0 0 14px rgba(168, 176, 192, 0.5);
+}
+.eventcard.hq-legend {
+    border-color: #ff6b6b;
+    box-shadow: 0 0 16px rgba(255, 107, 107, 0.55);
+}
+.eventcard.hq-mythic {
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+@keyframes evGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.82; }
+}
 </style>
-<style type="text/css">[data-sonner-toaster][dir=ltr],html[dir=ltr]{--toast-icon-margin-start:-3px;--toast-icon-margin-end:4px;--toast-svg-margin-start:-1px;--toast-svg-margin-end:0px;--toast-button-margin-start:auto;--toast-button-margin-end:0;--toast-close-button-start:0;--toast-close-button-end:unset;--toast-close-button-transform:translate(-35%, -35%)}[data-sonner-toaster][dir=rtl],html[dir=rtl]{--toast-icon-margin-start:4px;--toast-icon-margin-end:-3px;--toast-svg-margin-start:0px;--toast-svg-margin-end:-1px;--toast-button-margin-start:0;--toast-button-margin-end:auto;--toast-close-button-start:unset;--toast-close-button-end:0;--toast-close-button-transform:translate(35%, -35%)}[data-sonner-toaster]{position:fixed;width:var(--width);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;--gray1:hsl(0, 0%, 99%);--gray2:hsl(0, 0%, 97.3%);--gray3:hsl(0, 0%, 95.1%);--gray4:hsl(0, 0%, 93%);--gray5:hsl(0, 0%, 90.9%);--gray6:hsl(0, 0%, 88.7%);--gray7:hsl(0, 0%, 85.8%);--gray8:hsl(0, 0%, 78%);--gray9:hsl(0, 0%, 56.1%);--gray10:hsl(0, 0%, 52.3%);--gray11:hsl(0, 0%, 43.5%);--gray12:hsl(0, 0%, 9%);--border-radius:8px;box-sizing:border-box;padding:0;margin:0;list-style:none;outline:0;z-index:999999999;transition:transform .4s ease}@media (hover:none) and (pointer:coarse){[data-sonner-toaster][data-lifted=true]{transform:none}}[data-sonner-toaster][data-x-position=right]{right:var(--offset-right)}[data-sonner-toaster][data-x-position=left]{left:var(--offset-left)}[data-sonner-toaster][data-x-position=center]{left:50%;transform:translateX(-50%)}[data-sonner-toaster][data-y-position=top]{top:var(--offset-top)}[data-sonner-toaster][data-y-position=bottom]{bottom:var(--offset-bottom)}[data-sonner-toast]{--y:translateY(100%);--lift-amount:calc(var(--lift) * var(--gap));z-index:var(--z-index);position:absolute;opacity:0;transform:var(--y);touch-action:none;transition:transform .4s,opacity .4s,height .4s,box-shadow .2s;box-sizing:border-box;outline:0;overflow-wrap:anywhere}[data-sonner-toast][data-styled=true]{padding:16px;background:var(--normal-bg);border:1px solid var(--normal-border);color:var(--normal-text);border-radius:var(--border-radius);box-shadow:0 4px 12px rgba(0,0,0,.1);width:var(--width);font-size:13px;display:flex;align-items:center;gap:6px}[data-sonner-toast]:focus-visible{box-shadow:0 4px 12px rgba(0,0,0,.1),0 0 0 2px rgba(0,0,0,.2)}[data-sonner-toast][data-y-position=top]{top:0;--y:translateY(-100%);--lift:1;--lift-amount:calc(1 * var(--gap))}[data-sonner-toast][data-y-position=bottom]{bottom:0;--y:translateY(100%);--lift:-1;--lift-amount:calc(var(--lift) * var(--gap))}[data-sonner-toast][data-styled=true] [data-description]{font-weight:400;line-height:1.4;color:#3f3f3f}[data-rich-colors=true][data-sonner-toast][data-styled=true] [data-description]{color:inherit}[data-sonner-toaster][data-sonner-theme=dark] [data-description]{color:#e8e8e8}[data-sonner-toast][data-styled=true] [data-title]{font-weight:500;line-height:1.5;color:inherit}[data-sonner-toast][data-styled=true] [data-icon]{display:flex;height:16px;width:16px;position:relative;justify-content:flex-start;align-items:center;flex-shrink:0;margin-left:var(--toast-icon-margin-start);margin-right:var(--toast-icon-margin-end)}[data-sonner-toast][data-promise=true] [data-icon]>svg{opacity:0;transform:scale(.8);transform-origin:center;animation:sonner-fade-in .3s ease forwards}[data-sonner-toast][data-styled=true] [data-icon]>*{flex-shrink:0}[data-sonner-toast][data-styled=true] [data-icon] svg{margin-left:var(--toast-svg-margin-start);margin-right:var(--toast-svg-margin-end)}[data-sonner-toast][data-styled=true] [data-content]{display:flex;flex-direction:column;gap:2px}[data-sonner-toast][data-styled=true] [data-button]{border-radius:4px;padding-left:8px;padding-right:8px;height:24px;font-size:12px;color:var(--normal-bg);background:var(--normal-text);margin-left:var(--toast-button-margin-start);margin-right:var(--toast-button-margin-end);border:none;font-weight:500;cursor:pointer;outline:0;display:flex;align-items:center;flex-shrink:0;transition:opacity .4s,box-shadow .2s}[data-sonner-toast][data-styled=true] [data-button]:focus-visible{box-shadow:0 0 0 2px rgba(0,0,0,.4)}[data-sonner-toast][data-styled=true] [data-button]:first-of-type{margin-left:var(--toast-button-margin-start);margin-right:var(--toast-button-margin-end)}[data-sonner-toast][data-styled=true] [data-cancel]{color:var(--normal-text);background:rgba(0,0,0,.08)}[data-sonner-toaster][data-sonner-theme=dark] [data-sonner-toast][data-styled=true] [data-cancel]{background:rgba(255,255,255,.3)}[data-sonner-toast][data-styled=true] [data-close-button]{position:absolute;left:var(--toast-close-button-start);right:var(--toast-close-button-end);top:0;height:20px;width:20px;display:flex;justify-content:center;align-items:center;padding:0;color:var(--gray12);background:var(--normal-bg);border:1px solid var(--gray4);transform:var(--toast-close-button-transform);border-radius:50%;cursor:pointer;z-index:1;transition:opacity .1s,background .2s,border-color .2s}[data-sonner-toast][data-styled=true] [data-close-button]:focus-visible{box-shadow:0 4px 12px rgba(0,0,0,.1),0 0 0 2px rgba(0,0,0,.2)}[data-sonner-toast][data-styled=true] [data-disabled=true]{cursor:not-allowed}[data-sonner-toast][data-styled=true]:hover [data-close-button]:hover{background:var(--gray2);border-color:var(--gray5)}[data-sonner-toast][data-swiping=true]::before{content:'';position:absolute;left:-100%;right:-100%;height:100%;z-index:-1}[data-sonner-toast][data-y-position=top][data-swiping=true]::before{bottom:50%;transform:scaleY(3) translateY(50%)}[data-sonner-toast][data-y-position=bottom][data-swiping=true]::before{top:50%;transform:scaleY(3) translateY(-50%)}[data-sonner-toast][data-swiping=false][data-removed=true]::before{content:'';position:absolute;inset:0;transform:scaleY(2)}[data-sonner-toast][data-expanded=true]::after{content:'';position:absolute;left:0;height:calc(var(--gap) + 1px);bottom:100%;width:100%}[data-sonner-toast][data-mounted=true]{--y:translateY(0);opacity:1}[data-sonner-toast][data-expanded=false][data-front=false]{--scale:var(--toasts-before) * 0.05 + 1;--y:translateY(calc(var(--lift-amount) * var(--toasts-before))) scale(calc(-1 * var(--scale)));height:var(--front-toast-height)}[data-sonner-toast]>*{transition:opacity .4s}[data-sonner-toast][data-x-position=right]{right:0}[data-sonner-toast][data-x-position=left]{left:0}[data-sonner-toast][data-expanded=false][data-front=false][data-styled=true]>*{opacity:0}[data-sonner-toast][data-visible=false]{opacity:0;pointer-events:none}[data-sonner-toast][data-mounted=true][data-expanded=true]{--y:translateY(calc(var(--lift) * var(--offset)));height:var(--initial-height)}[data-sonner-toast][data-removed=true][data-front=true][data-swipe-out=false]{--y:translateY(calc(var(--lift) * -100%));opacity:0}[data-sonner-toast][data-removed=true][data-front=false][data-swipe-out=false][data-expanded=true]{--y:translateY(calc(var(--lift) * var(--offset) + var(--lift) * -100%));opacity:0}[data-sonner-toast][data-removed=true][data-front=false][data-swipe-out=false][data-expanded=false]{--y:translateY(40%);opacity:0;transition:transform .5s,opacity .2s}[data-sonner-toast][data-removed=true][data-front=false]::before{height:calc(var(--initial-height) + 20%)}[data-sonner-toast][data-swiping=true]{transform:var(--y) translateY(var(--swipe-amount-y,0)) translateX(var(--swipe-amount-x,0));transition:none}[data-sonner-toast][data-swiped=true]{user-select:none}[data-sonner-toast][data-swipe-out=true][data-y-position=bottom],[data-sonner-toast][data-swipe-out=true][data-y-position=top]{animation-duration:.2s;animation-timing-function:ease-out;animation-fill-mode:forwards}[data-sonner-toast][data-swipe-out=true][data-swipe-direction=left]{animation-name:swipe-out-left}[data-sonner-toast][data-swipe-out=true][data-swipe-direction=right]{animation-name:swipe-out-right}[data-sonner-toast][data-swipe-out=true][data-swipe-direction=up]{animation-name:swipe-out-up}[data-sonner-toast][data-swipe-out=true][data-swipe-direction=down]{animation-name:swipe-out-down}@keyframes swipe-out-left{from{transform:var(--y) translateX(var(--swipe-amount-x));opacity:1}to{transform:var(--y) translateX(calc(var(--swipe-amount-x) - 100%));opacity:0}}@keyframes swipe-out-right{from{transform:var(--y) translateX(var(--swipe-amount-x));opacity:1}to{transform:var(--y) translateX(calc(var(--swipe-amount-x) + 100%));opacity:0}}@keyframes swipe-out-up{from{transform:var(--y) translateY(var(--swipe-amount-y));opacity:1}to{transform:var(--y) translateY(calc(var(--swipe-amount-y) - 100%));opacity:0}}@keyframes swipe-out-down{from{transform:var(--y) translateY(var(--swipe-amount-y));opacity:1}to{transform:var(--y) translateY(calc(var(--swipe-amount-y) + 100%));opacity:0}}@media (max-width:600px){[data-sonner-toaster]{position:fixed;right:var(--mobile-offset-right);left:var(--mobile-offset-left);width:100%}[data-sonner-toaster][dir=rtl]{left:calc(var(--mobile-offset-left) * -1)}[data-sonner-toaster] [data-sonner-toast]{left:0;right:0;width:calc(100% - var(--mobile-offset-left) * 2)}[data-sonner-toaster][data-x-position=left]{left:var(--mobile-offset-left)}[data-sonner-toaster][data-y-position=bottom]{bottom:var(--mobile-offset-bottom)}[data-sonner-toaster][data-y-position=top]{top:var(--mobile-offset-top)}[data-sonner-toaster][data-x-position=center]{left:var(--mobile-offset-left);right:var(--mobile-offset-right);transform:none}}[data-sonner-toaster][data-sonner-theme=light]{--normal-bg:#fff;--normal-border:var(--gray4);--normal-text:var(--gray12);--success-bg:hsl(143, 85%, 96%);--success-border:hsl(145, 92%, 87%);--success-text:hsl(140, 100%, 27%);--info-bg:hsl(208, 100%, 97%);--info-border:hsl(221, 91%, 93%);--info-text:hsl(210, 92%, 45%);--warning-bg:hsl(49, 100%, 97%);--warning-border:hsl(49, 91%, 84%);--warning-text:hsl(31, 92%, 45%);--error-bg:hsl(359, 100%, 97%);--error-border:hsl(359, 100%, 94%);--error-text:hsl(360, 100%, 45%)}[data-sonner-toaster][data-sonner-theme=light] [data-sonner-toast][data-invert=true]{--normal-bg:#000;--normal-border:hsl(0, 0%, 20%);--normal-text:var(--gray1)}[data-sonner-toaster][data-sonner-theme=dark] [data-sonner-toast][data-invert=true]{--normal-bg:#fff;--normal-border:var(--gray3);--normal-text:var(--gray12)}[data-sonner-toaster][data-sonner-theme=dark]{--normal-bg:#000;--normal-bg-hover:hsl(0, 0%, 12%);--normal-border:hsl(0, 0%, 20%);--normal-border-hover:hsl(0, 0%, 25%);--normal-text:var(--gray1);--success-bg:hsl(150, 100%, 6%);--success-border:hsl(147, 100%, 12%);--success-text:hsl(150, 86%, 65%);--info-bg:hsl(215, 100%, 6%);--info-border:hsl(223, 43%, 17%);--info-text:hsl(216, 87%, 65%);--warning-bg:hsl(64, 100%, 6%);--warning-border:hsl(60, 100%, 9%);--warning-text:hsl(46, 87%, 65%);--error-bg:hsl(358, 76%, 10%);--error-border:hsl(357, 89%, 16%);--error-text:hsl(358, 100%, 81%)}[data-sonner-toaster][data-sonner-theme=dark] [data-sonner-toast] [data-close-button]{background:var(--normal-bg);border-color:var(--normal-border);color:var(--normal-text)}[data-sonner-toaster][data-sonner-theme=dark] [data-sonner-toast] [data-close-button]:hover{background:var(--normal-bg-hover);border-color:var(--normal-border-hover)}[data-rich-colors=true][data-sonner-toast][data-type=success]{background:var(--success-bg);border-color:var(--success-border);color:var(--success-text)}[data-rich-colors=true][data-sonner-toast][data-type=success] [data-close-button]{background:var(--success-bg);border-color:var(--success-border);color:var(--success-text)}[data-rich-colors=true][data-sonner-toast][data-type=info]{background:var(--info-bg);border-color:var(--info-border);color:var(--info-text)}[data-rich-colors=true][data-sonner-toast][data-type=info] [data-close-button]{background:var(--info-bg);border-color:var(--info-border);color:var(--info-text)}[data-rich-colors=true][data-sonner-toast][data-type=warning]{background:var(--warning-bg);border-color:var(--warning-border);color:var(--warning-text)}[data-rich-colors=true][data-sonner-toast][data-type=warning] [data-close-button]{background:var(--warning-bg);border-color:var(--warning-border);color:var(--warning-text)}[data-rich-colors=true][data-sonner-toast][data-type=error]{background:var(--error-bg);border-color:var(--error-border);color:var(--error-text)}[data-rich-colors=true][data-sonner-toast][data-type=error] [data-close-button]{background:var(--error-bg);border-color:var(--error-border);color:var(--error-text)}.sonner-loading-wrapper{--size:16px;height:var(--size);width:var(--size);position:absolute;inset:0;z-index:10}.sonner-loading-wrapper[data-visible=false]{transform-origin:center;animation:sonner-fade-out .2s ease forwards}.sonner-spinner{position:relative;top:50%;left:50%;height:var(--size);width:var(--size)}.sonner-loading-bar{animation:sonner-spin 1.2s linear infinite;background:var(--gray11);border-radius:6px;height:8%;left:-10%;position:absolute;top:-3.9%;width:24%}.sonner-loading-bar:first-child{animation-delay:-1.2s;transform:rotate(.0001deg) translate(146%)}.sonner-loading-bar:nth-child(2){animation-delay:-1.1s;transform:rotate(30deg) translate(146%)}.sonner-loading-bar:nth-child(3){animation-delay:-1s;transform:rotate(60deg) translate(146%)}.sonner-loading-bar:nth-child(4){animation-delay:-.9s;transform:rotate(90deg) translate(146%)}.sonner-loading-bar:nth-child(5){animation-delay:-.8s;transform:rotate(120deg) translate(146%)}.sonner-loading-bar:nth-child(6){animation-delay:-.7s;transform:rotate(150deg) translate(146%)}.sonner-loading-bar:nth-child(7){animation-delay:-.6s;transform:rotate(180deg) translate(146%)}.sonner-loading-bar:nth-child(8){animation-delay:-.5s;transform:rotate(210deg) translate(146%)}.sonner-loading-bar:nth-child(9){animation-delay:-.4s;transform:rotate(240deg) translate(146%)}.sonner-loading-bar:nth-child(10){animation-delay:-.3s;transform:rotate(270deg) translate(146%)}.sonner-loading-bar:nth-child(11){animation-delay:-.2s;transform:rotate(300deg) translate(146%)}.sonner-loading-bar:nth-child(12){animation-delay:-.1s;transform:rotate(330deg) translate(146%)}@keyframes sonner-fade-in{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}@keyframes sonner-fade-out{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}@keyframes sonner-spin{0%{opacity:1}100%{opacity:.15}}@media (prefers-reduced-motion){.sonner-loading-bar,[data-sonner-toast],[data-sonner-toast]>*{transition:none!important;animation:none!important}}.sonner-loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transform-origin:center;transition:opacity .2s,transform .2s}.sonner-loader[data-visible=false]{opacity:0;transform:scale(.8) translate(-50%,-50%)}</style></head>
+</head>
 <body>
-<div id="app" data-doubao-translate-traverse-mark="1">
-  <div id="screen-start" class="screen active" data-doubao-translate-traverse-mark="1">
-    <div class="center" data-doubao-translate-traverse-mark="1">
-      <div class="logo" data-doubao-translate-traverse-mark="1">斗罗人生模拟器</div>
-      <div class="subtitle" data-doubao-translate-traverse-mark="1">命运的齿轮转动之前，你只是斗罗大陆上一缕未定的魂灵</div>
-      <button class="btn primary" id="btnStart" data-doubao-translate-traverse-mark="1">踏入轮回</button>
-      <div style="margin-top:26px;width:100%;max-width:460px;text-align:left" data-doubao-translate-traverse-mark="1">
-        <div class="card" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">轮回殿</h3>
-          <p style="margin-bottom:12px" data-doubao-translate-traverse-mark="1">当前轮回点：<b class="muted" id="lunDian">1203</b>（每局按「境界保底 + 评分上浮」结算 1~9 点：凡人+1、90级以下+2、90~98级+3、99级+4、成神+6，高评分额外+1~3；可永久加点强化下一世）</p>
-          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:12px;color:var(--gold)" data-doubao-translate-traverse-mark="1">第一世赤手空拳，修炼艰难、寿元有限，是绝大多数魂师的写照。轮回加护可逐步降低难度：修炼更快、猎魂更稳、寿元更长、武魂更佳，多周目渐入佳境。</p>
-          <div id="lunhuiList" data-doubao-translate-traverse-mark="1"><div class="lhrow"><div class="ln">顶级武魂</div><div class="ld">觉醒时更易抽到顶级武魂 · 每点+0.04%概率（满 100 点：12%→16%）</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="dingTop" data-d="-1">−</button>
-        <span class="lhval">100/100</span>
-        <button class="lhbtn" data-k="dingTop" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">超级武魂</div><div class="ld">觉醒时更易抽到超级武魂 · 每点+0.03%概率（满 100 点：5%→8%）</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="superTop" data-d="-1">−</button>
-        <span class="lhval">100/100</span>
-        <button class="lhbtn" data-k="superTop" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">神级武魂</div><div class="ld">觉醒时更易抽到神级武魂 · 每点+0.02%概率（满 100 点：1%→3%）</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="shenTop" data-d="-1">−</button>
-        <span class="lhval">100/100</span>
-        <button class="lhbtn" data-k="shenTop" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">力量</div><div class="ld">出生力量 · +1 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="liLiang" data-d="-1">−</button>
-        <span class="lhval">10/10</span>
-        <button class="lhbtn" data-k="liLiang" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">敏捷</div><div class="ld">出生敏捷 · +1 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="minJie" data-d="-1">−</button>
-        <span class="lhval">10/10</span>
-        <button class="lhbtn" data-k="minJie" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">体力</div><div class="ld">出生体质 · +1 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="tiLi" data-d="-1">−</button>
-        <span class="lhval">10/10</span>
-        <button class="lhbtn" data-k="tiLi" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">精神力</div><div class="ld">出生精神力 · +1 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="jingShen" data-d="-1">−</button>
-        <span class="lhval">10/10</span>
-        <button class="lhbtn" data-k="jingShen" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">寿命上限</div><div class="ld">出生寿元上限（人类寿命区间内加成） · +1 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="life" data-d="-1">−</button>
-        <span class="lhval">20/20</span>
-        <button class="lhbtn" data-k="life" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">悟性</div><div class="ld">出生悟性 · +0.5 /点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="wuXing" data-d="-1">−</button>
-        <span class="lhval">20/20</span>
-        <button class="lhbtn" data-k="wuXing" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">修炼天赋</div><div class="ld">魂力修炼速度提升——初始一世艰难，轮回加护渐易 · +3% 修炼速度/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="cultTop" data-d="-1">−</button>
-        <span class="lhval">30/30</span>
-        <button class="lhbtn" data-k="cultTop" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">猎魂福缘</div><div class="ld">提高猎杀魂兽成功率、降低凶险 · +1.5% 猎魂成功率/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="huntTop" data-d="-1">−</button>
-        <span class="lhval">15/15</span>
-        <button class="lhbtn" data-k="huntTop" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">黑事件</div><div class="ld">黑色史诗事件出现概率 · +0.1% 概率/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="epicEv" data-d="-1">−</button>
-        <span class="lhval">60/60</span>
-        <button class="lhbtn" data-k="epicEv" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">红事件</div><div class="ld">红色传说事件出现概率 · +0.1% 概率/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="legendEv" data-d="-1">−</button>
-        <span class="lhval">50/50</span>
-        <button class="lhbtn" data-k="legendEv" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">金事件</div><div class="ld">金色神话事件出现概率 · +0.1% 概率/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="mythicEv" data-d="-1">−</button>
-        <span class="lhval">50/50</span>
-        <button class="lhbtn" data-k="mythicEv" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow"><div class="ln">武魂变异</div><div class="ld">提高特定武魂触发变异的概率（基础 5%，上限 20%；上三宗专属武魂入对宗门可突破上限） · +0.25% 触发概率/点</div>
-      <div class="lb">
-        <button class="lhbtn" data-k="goodMut" data-d="-1">−</button>
-        <span class="lhval">60/60</span>
-        <button class="lhbtn" data-k="goodMut" data-d="1" disabled="">＋</button>
-      </div></div><div class="lhrow fate-row"><div class="ln">命格祭炼</div><div class="ld">命格已集齐全部 12 种，祭炼圆满。</div>
-    <div class="lb">
-      <span class="lhval">已祭炼 12/12 命格</span>
-      <button class="lhbtn" id="btnFate" style="width:auto;padding:0 10px;font-size:12px;white-space:nowrap" disabled="">已集齐</button>
-    </div></div><div class="fate-tip"><div style="margin-top:6px;font-size:11px;color:var(--dim)">已祭炼 <b style="color:var(--gold)">12/12</b> · 每局从命格池随机生效 <b style="color:var(--gold)">3 个</b>（抽取不重复，祭炼越多生效越多）</div><div class="fate-grid"><div class="fate-item" title="出生自带一块千年魂骨，体质+10"><span class="fate-nm">天生灵骨</span><span class="fate-ds">出生自带一块千年魂骨，体质+10</span></div><div class="fate-item" title="先天魂力+2：修炼速度与觉醒起点同步提升（先天 0 者无效）"><span class="fate-nm">天骄血脉</span><span class="fate-ds">先天魂力+2：修炼速度与觉醒起点同步提升（先天 0 者无效）</span></div><div class="fate-item" title="天命+15"><span class="fate-nm">神眷之子</span><span class="fate-ds">天命+15</span></div><div class="fate-item" title="家境保底 60"><span class="fate-nm">世家底蕴</span><span class="fate-ds">家境保底 60</span></div><div class="fate-item" title="战斗四维开局各+5"><span class="fate-nm">根骨清奇</span><span class="fate-ds">战斗四维开局各+5</span></div><div class="fate-item" title="开局金魂币+2000"><span class="fate-nm">家财万贯</span><span class="fate-ds">开局金魂币+2000</span></div><div class="fate-item" title="初始声望+80"><span class="fate-nm">声名鹊起</span><span class="fate-ds">初始声望+80</span></div><div class="fate-item" title="第一魂环年份更佳（+50%）"><span class="fate-nm">机缘深厚</span><span class="fate-ds">第一魂环年份更佳（+50%）</span></div><div class="fate-item" title="双生武魂概率+6%"><span class="fate-nm">双生之兆</span><span class="fate-ds">双生武魂概率+6%</span></div><div class="fate-item" title="开局魂力+3：觉醒即领先三级，不改变先天资质"><span class="fate-nm">天生魂力</span><span class="fate-ds">开局魂力+3：觉醒即领先三级，不改变先天资质</span></div><div class="fate-item" title="事件触发率+10%"><span class="fate-nm">福缘深厚</span><span class="fate-ds">事件触发率+10%</span></div><div class="fate-item" title="猎魂殒命率-5%"><span class="fate-nm">坚如磐石</span><span class="fate-ds">猎魂殒命率-5%</span></div></div></div></div>
+<div id="app">
+  <div id="screen-start" class="screen active">
+    <div class="center">
+      <div class="logo">斗罗人生模拟器</div>
+      <div class="subtitle">命运的齿轮转动之前，你只是斗罗大陆上一缕未定的魂灵</div>
+      <button class="btn primary" id="btnStart">踏入轮回</button>
+      <div style="margin-top:26px;width:100%;max-width:460px;text-align:left">
+        <div class="card">
+          <h3>轮回殿</h3>
+          <p style="margin-bottom:12px">当前轮回点：<b class="muted" id="lunDian">0</b>（每局按「境界保底 + 评分上浮」结算 1~9 点：凡人+1、90级以下+2、90~98级+3、99级+4、成神+6，高评分额外+1~3；可永久加点强化下一世）</p>
+          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:12px;color:var(--gold)">第一世赤手空拳，修炼艰难、寿元有限，是绝大多数魂师的写照。轮回加护可逐步降低难度：修炼更快、猎魂更稳、寿元更长、武魂更佳，多周目渐入佳境。</p>
+          <div id="lunhuiList"></div>
         </div>
-        <div class="card" style="margin-top:14px" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">图鉴 · 轮回见闻 <span class="muted" style="font-size:12px">（跨世收集）</span></h3>
-          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:10px" data-doubao-translate-traverse-mark="1">收集觉醒过的武魂、触发过的事件与达成的结局。武魂收集越全，天生天资（天命）越盛。</p>
-          <div id="atlasSumm" class="atlas-summ" data-doubao-translate-traverse-mark="1">
-    <div class="atlas-chip"><b>107/117</b><span>武魂</span></div>
-    <div class="atlas-chip"><b>138/149</b><span>事件</span></div>
-    <div class="atlas-chip"><b>16</b><span>结局</span></div>
-    <div class="atlas-chip"><b>+8</b><span>天命</span></div>
-    <div class="atlas-chip"><b>+10</b><span>悟性</span></div>
-    <div class="atlas-chip"><b>9</b><span>称号</span></div></div>
-          <button class="btn small" id="btnAtlas" style="margin-top:8px" data-doubao-translate-traverse-mark="1">展开图鉴</button>
-          <div id="atlasPanel" style="display:none;margin-top:10px" data-doubao-translate-traverse-mark="1"></div>
+        <div class="card" style="margin-top:14px">
+          <h3>图鉴 · 轮回见闻 <span class="muted" style="font-size:12px">（跨世收集）</span></h3>
+          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:10px">收集觉醒过的武魂、触发过的事件与达成的结局。武魂收集越全，天生天资（天命）越盛。</p>
+          <div id="atlasSumm" class="atlas-summ"></div>
+          <button class="btn small" id="btnAtlas" style="margin-top:8px">展开图鉴</button>
+          <div id="atlasPanel" style="display:none;margin-top:10px"></div>
         </div>
-        <div class="card" style="margin-top:14px" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">轮回榜 · 万世留名 <span class="muted" style="font-size:12px">（本机生涯纪录）</span></h3>
-          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:10px" data-doubao-translate-traverse-mark="1">历世之最，皆刻于此。按评分、战力或等级排名，看看你最强的转世是哪一局。</p>
-          <div id="boardTabs" style="display:none;gap:6px;margin-bottom:8px" data-doubao-translate-traverse-mark="1">
-            <button class="btn mini" data-bt="score" onclick="setBoardTab('score')" data-doubao-translate-traverse-mark="1">按评分</button>
-            <button class="btn mini" data-bt="power" onclick="setBoardTab('power')" data-doubao-translate-traverse-mark="1">按战力</button>
-            <button class="btn mini" data-bt="lv" onclick="setBoardTab('lv')" data-doubao-translate-traverse-mark="1">按等级</button>
+        <div class="card" style="margin-top:14px">
+          <h3>轮回榜 · 万世留名 <span class="muted" style="font-size:12px">（本机生涯纪录）</span></h3>
+          <p class="muted" style="font-size:12.5px;line-height:1.7;margin-bottom:10px">历世之最，皆刻于此。按评分、战力或等级排名，看看你最强的转世是哪一局。</p>
+          <div id="boardTabs" style="display:none;gap:6px;margin-bottom:8px">
+            <button class="btn mini" data-bt="score" onclick="setBoardTab('score')">按评分</button>
+            <button class="btn mini" data-bt="power" onclick="setBoardTab('power')">按战力</button>
+            <button class="btn mini" data-bt="lv" onclick="setBoardTab('lv')">按等级</button>
           </div>
-          <button class="btn small" id="btnBoard" style="margin-top:8px" data-doubao-translate-traverse-mark="1">展开排行榜</button>
-          <div id="boardPanel" style="display:none;margin-top:10px" data-doubao-translate-traverse-mark="1"></div>
+          <button class="btn small" id="btnBoard" style="margin-top:8px">展开排行榜</button>
+          <div id="boardPanel" style="display:none;margin-top:10px"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="screen-roll" class="screen" data-doubao-translate-traverse-mark="1">
-    <div class="center" data-doubao-translate-traverse-mark="1">
-      <div class="title-s" data-doubao-translate-traverse-mark="1">转世投胎</div>
-      <p class="muted" style="margin-bottom:16px" data-doubao-translate-traverse-mark="1">出生之前，先掷出你的先天资质。力量/敏捷/体质/精神力为战斗四维（普通人基准 5，不设上限）</p>
-      <div id="rollGender" style="width:100%;max-width:420px;margin-bottom:10px" data-doubao-translate-traverse-mark="1"><span style="margin-right:12px">姓名 <b style="font-size:15px;color:var(--gold2)">温酒</b></span><span style="margin-right:12px">性别 <b style="font-size:15px;color:var(--gold2)">女</b></span><span>性格 <b style="font-size:15px;color:var(--gold2)">沉稳</b></span></div>
-      <div id="rollAttrs" style="width:100%;max-width:420px" class="attrgrid" data-doubao-translate-traverse-mark="1"><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">力量</div><div class="vl" data-doubao-translate-traverse-mark="1">14</div></div><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">敏捷</div><div class="vl" data-doubao-translate-traverse-mark="1">12</div></div><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">体质</div><div class="vl" data-doubao-translate-traverse-mark="1">14</div></div><div class="attrbox psi" data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">精神力</div><div class="vl" data-doubao-translate-traverse-mark="1">12</div></div><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">悟性</div><div class="vl" data-doubao-translate-traverse-mark="1">51</div></div><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">家境</div><div class="vl" data-doubao-translate-traverse-mark="1">25</div></div><div class="attrbox " data-doubao-translate-traverse-mark="1"><div class="nm" data-doubao-translate-traverse-mark="1">天命</div><div class="vl" data-doubao-translate-traverse-mark="1">24</div></div></div>
-      <div class="muted" style="width:100%;max-width:420px;margin-top:8px;font-size:11px;line-height:1.7;text-align:left" data-doubao-translate-traverse-mark="1">掷点规则：力量/敏捷/体质/精神力开局 0-10 随机（轮回殿加点与命格可提升，不设上限）；<br data-doubao-translate-traverse-mark="1">悟性 5-70 随机（事件图鉴与轮回殿可提升）；家境 5-70 随机（命格可保底）；天命 5-70 随机（图鉴收集可提升）</div>
-      <div id="giftBox" style="width: 100%; max-width: 420px; margin-top: 10px; display: block;" data-doubao-translate-traverse-mark="1"><div class="card" style="padding:10px" data-doubao-translate-traverse-mark="1"><div style="font-size:13px;margin-bottom:4px" data-doubao-translate-traverse-mark="1"><b>来世天赋</b> <span class="muted" style="font-size:11.5px">轮回殿已圆满——消耗轮回点定制来世（每局重新配置）</span></div><div style="font-size:12px;margin:6px 0 3px;color:var(--gold2)" data-doubao-translate-traverse-mark="1">定制武魂（觉醒品质保底，越高级越贵）</div><div style="display:flex;flex-wrap:wrap;gap:5px" data-doubao-translate-traverse-mark="1"><button class="lhbtn" data-gw="fei" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">废(0)</button><button class="lhbtn" data-gw="pu" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">普通(10)</button><button class="lhbtn" data-gw="you" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">优良(25)</button><button class="lhbtn" data-gw="ding" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">顶级(50)</button><button class="lhbtn" data-gw="super" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">超级(75)</button><button class="lhbtn" data-gw="shen" style="flex:1;min-width:64px;" data-doubao-translate-traverse-mark="1">神级(100)</button></div><div style="font-size:12px;margin:8px 0 3px;color:var(--gold2)" data-doubao-translate-traverse-mark="1">指定命格（本局必得，价格 15 点）</div><select id="giftFateSel" style="width:100%;padding:4px;font-size:12px;background:#1a1626;color:#e9c46a;border:1px solid #3a3350;border-radius:6px" data-doubao-translate-traverse-mark="1"><option value="" data-doubao-translate-traverse-mark="1">— 不指定 —</option><option value="天生灵骨" data-doubao-translate-traverse-mark="1">天生灵骨（出生自带一块千年魂骨，体质+10）</option><option value="天骄血脉" data-doubao-translate-traverse-mark="1">天骄血脉（先天魂力+2：修炼速度与觉醒起点同步提升（先天 0 者无效））</option><option value="神眷之子" data-doubao-translate-traverse-mark="1">神眷之子（天命+15）</option><option value="世家底蕴" data-doubao-translate-traverse-mark="1">世家底蕴（家境保底 60）</option><option value="根骨清奇" data-doubao-translate-traverse-mark="1">根骨清奇（战斗四维开局各+5）</option><option value="家财万贯" data-doubao-translate-traverse-mark="1">家财万贯（开局金魂币+2000）</option><option value="声名鹊起" data-doubao-translate-traverse-mark="1">声名鹊起（初始声望+80）</option><option value="机缘深厚" data-doubao-translate-traverse-mark="1">机缘深厚（第一魂环年份更佳（+50%））</option><option value="双生之兆" data-doubao-translate-traverse-mark="1">双生之兆（双生武魂概率+6%）</option><option value="天生魂力" data-doubao-translate-traverse-mark="1">天生魂力（开局魂力+3：觉醒即领先三级，不改变先天资质）</option><option value="福缘深厚" data-doubao-translate-traverse-mark="1">福缘深厚（事件触发率+10%）</option><option value="坚如磐石" data-doubao-translate-traverse-mark="1">坚如磐石（猎魂殒命率-5%）</option></select><div style="font-size:12px;margin:8px 0 3px;color:var(--gold2)" data-doubao-translate-traverse-mark="1">指定一次高品质事件（本局必触发一次）</div><div style="display:flex;gap:5px" data-doubao-translate-traverse-mark="1"><button class="lhbtn" data-ge="epic" style="flex:1;" data-doubao-translate-traverse-mark="1">史诗(15)</button><button class="lhbtn" data-ge="legend" style="flex:1;" data-doubao-translate-traverse-mark="1">传说(30)</button><button class="lhbtn" data-ge="mythic" style="flex:1;" data-doubao-translate-traverse-mark="1">神话(45)</button></div><div class="muted" style="font-size:11px;margin-top:6px" data-doubao-translate-traverse-mark="1">已投入 <b style="color:var(--gold)">0</b> 轮回点</div></div></div>
-      <div style="display:flex;gap:10px;margin-top:18px" data-doubao-translate-traverse-mark="1">
-        <button class="btn" id="btnReroll" data-doubao-translate-traverse-mark="1">重新投胎</button>
-        <button class="btn primary" id="btnAccept" data-doubao-translate-traverse-mark="1">接受命运</button>
+  <div id="screen-roll" class="screen">
+    <div class="center">
+      <div class="title-s">转世投胎</div>
+      <p class="muted" style="margin-bottom:16px">出生之前，先掷出你的先天资质。力量/敏捷/体质/精神力为战斗四维（普通人基准 5，不设上限）</p>
+      <div id="rollGender" style="width:100%;max-width:420px;margin-bottom:10px"></div>
+      <div id="rollAttrs" style="width:100%;max-width:420px" class="attrgrid"></div>
+      <div class="muted" style="width:100%;max-width:420px;margin-top:8px;font-size:11px;line-height:1.7;text-align:left">掷点规则：力量/敏捷/体质/精神力开局 0-10 随机（轮回殿加点与命格可提升，不设上限）；<br>悟性 5-70 随机（事件图鉴与轮回殿可提升）；家境 5-70 随机（命格可保底）；天命 5-70 随机（图鉴收集可提升）</div>
+      <div id="giftBox" style="width:100%;max-width:420px;margin-top:10px;display:none"></div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button class="btn" id="btnReroll">重新投胎</button>
+        <button class="btn primary" id="btnAccept">接受命运</button>
       </div>
-      <div id="rollTips" class="muted" style="margin-top:14px;font-size:13px;line-height:1.7" data-doubao-translate-traverse-mark="1"><b data-doubao-translate-traverse-mark="1">城镇小康</b> · 父辈是普通魂师或商人，日子尚可。 <br data-doubao-translate-traverse-mark="1"><span class="muted" data-doubao-translate-traverse-mark="1">精神力影响战力、猎魂感知与魂技威力；不同武魂各有属性成长倾向。寿元有限，修炼慢者将空耗一生。</span></div>
+      <div id="rollTips" class="muted" style="margin-top:14px;font-size:13px;line-height:1.7"></div>
     </div>
   </div>
 
-  <div id="screen-awaken" class="screen" data-doubao-translate-traverse-mark="1">
-    <div class="center" data-doubao-translate-traverse-mark="1">
-      <div class="title-s" data-doubao-translate-traverse-mark="1">武魂觉醒</div>
-      <p class="muted" style="margin-bottom:10px" data-doubao-translate-traverse-mark="1">六岁生辰，觉醒大殿，命运在此刻显形</p>
-      <div class="card" style="width:100%;max-width:460px" data-doubao-translate-traverse-mark="1">
-        <div id="awaLine" style="font-size:14px;margin-bottom:8px" data-doubao-translate-traverse-mark="1">整座大殿都在颤栗——这是足以名动大陆的武魂！</div>
-        <div class="awa-big q-ding" id="awaName" data-doubao-translate-traverse-mark="1">蓝电霸王龙</div>
-        <div id="awaInfo" style="margin:6px 0" data-doubao-translate-traverse-mark="1"><span style="font-size:16px;font-weight:700;color:var(--dim)">女儿身</span> · <span class="q-ding" style="font-size:16px;font-weight:700">顶级武魂</span>
-     · 兽武魂 · 先天魂力 <b style="color:var(--gold2)">7级</b>
-     · 修炼速率 ×1.55
-     
-     </div>
-        <div id="awaDual" style="color:var(--gold);font-size:13px;margin-bottom:6px" data-doubao-translate-traverse-mark="1"></div>
+  <div id="screen-awaken" class="screen">
+    <div class="center">
+      <div class="title-s">武魂觉醒</div>
+      <p class="muted" style="margin-bottom:10px">六岁生辰，觉醒大殿，命运在此刻显形</p>
+      <div class="card" style="width:100%;max-width:460px">
+        <div id="awaLine" style="font-size:14px;margin-bottom:8px"></div>
+        <div class="awa-big" id="awaName"></div>
+        <div id="awaInfo" style="margin:6px 0"></div>
+        <div id="awaDual" style="color:var(--gold);font-size:13px;margin-bottom:6px"></div>
       </div>
-      <button class="btn primary" id="btnBegin" style="margin-top:16px" data-doubao-translate-traverse-mark="1">开始修炼生涯</button>
+      <button class="btn primary" id="btnBegin" style="margin-top:16px">开始修炼生涯</button>
     </div>
   </div>
 
-  <div id="screen-game" class="screen" data-doubao-translate-traverse-mark="1">
-    <div id="autoBar" data-doubao-translate-traverse-mark="1">
-      <button class="btn small" id="btnAuto" title="开启/暂停自动挂机，自动修炼（历练）、自动选择事件与猎魂" data-doubao-translate-traverse-mark="1">自动</button>
-      <button class="btn small" id="btnGuide" title="查看新手指南" data-doubao-translate-traverse-mark="1">指南</button>
-      <span class="muted" style="font-size:12px" data-doubao-translate-traverse-mark="1">速度</span>
-      <button class="btn small auto-speed" data-s="1" data-doubao-translate-traverse-mark="1">×1</button>
-      <button class="btn small auto-speed" data-s="2" data-doubao-translate-traverse-mark="1">×2</button>
-      <button class="btn small auto-speed on" data-s="4" data-doubao-translate-traverse-mark="1">×4</button>
-      <button class="btn small auto-speed" data-s="8" data-doubao-translate-traverse-mark="1">×8</button>
-      <span class="muted" id="autoHint" style="font-size:12px" data-doubao-translate-traverse-mark="1">自动模式：行动按需智能选择（缺钱经营/寿元紧张苦修/近关口苦修/低悟性交游/常规历练）、自动选择事件与猎魂，随时可停</span>
+  <div id="screen-game" class="screen">
+    <div id="autoBar">
+      <button class="btn small" id="btnAuto" title="开启/暂停自动挂机，自动修炼（历练）、自动选择事件与猎魂">自动</button>
+      <button class="btn small" id="btnGuide" title="查看新手指南">指南</button>
+      <span class="muted" style="font-size:12px">速度</span>
+      <button class="btn small auto-speed" data-s="1">×1</button>
+      <button class="btn small auto-speed" data-s="2">×2</button>
+      <button class="btn small auto-speed on" data-s="4">×4</button>
+      <button class="btn small auto-speed" data-s="8">×8</button>
+      <span class="muted" id="autoHint" style="font-size:12px">自动模式：自动修炼（历练）、自动选择事件与猎魂，随时可停</span>
     </div>
-    <div id="topStats" data-doubao-translate-traverse-mark="1"><span class="statpill">姓名 <b>温酒</b></span>
-     <span class="statpill">性格 <b>沉稳</b></span>
-     <span class="statpill">性别 <b>女</b></span>
-     <span class="statpill">境界 <b>极限斗罗 · 蓝电斗罗</b></span>
-     <span class="statpill">魂力 <b>99级</b></span>
-     <span class="statpill">战力 <b>119414</b></span>
-     <span class="statpill " title="当前 68 岁，寿元上限 307 岁，余 239 年">寿元 <b>68/307岁</b></span>
-     <span class="statpill">金魂币 <b>7310</b></span>
-     <span class="statpill">声望 <b>140</b></span>
-     <span class="statpill" title="怪物集训·悟性成长+10%、金魂币获取+10%">势力 <b>史莱克学院</b><span style="font-size:10px;color:var(--dim)">·被动</span></span>
-     <span class="statpill" title="家财万贯：开局金魂币+2000
-天生灵骨：出生自带一块千年魂骨，体质+10
-福缘深厚：事件触发率+10%">命格 <b>家财万贯、天生灵骨、福缘深厚</b></span></div>
-    <div id="hudLunhui" style="margin-bottom:10px;font-size:11.5px;line-height:1.6" data-doubao-translate-traverse-mark="1"><span style="color:var(--gold)">轮回加护：顶级武魂概率+4% · 超级武魂概率+3% · 神级武魂概率+2% · 力量+10 · 敏捷+10 · 体质+10 · 精神力+10 · 寿元上限+20 · 悟性+10 · 修炼速度+90% · 猎魂成功率+22.5% · 黑事件+6% · 红事件+5% · 金事件+5% · 变异触发+15%</span></div>
-    <div id="layout" data-doubao-translate-traverse-mark="1">
-      <div data-doubao-translate-traverse-mark="1">
-        <div class="card" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">属性</h3>
-          <div id="sideAttrs" class="attrgrid" data-doubao-translate-traverse-mark="1"><div class="attrbox "><div class="nm">力量</div><div class="vl">274</div></div><div class="attrbox "><div class="nm">敏捷</div><div class="vl">141</div></div><div class="attrbox "><div class="nm">体质</div><div class="vl">252</div></div><div class="attrbox psi"><div class="nm">精神力</div><div class="vl">182</div></div><div class="attrbox "><div class="nm">悟性</div><div class="vl">100</div></div><div class="attrbox "><div class="nm">家境</div><div class="vl">54</div></div><div class="attrbox "><div class="nm">天命</div><div class="vl">52</div></div><div style="grid-column:1/-1;margin-top:6px;display:flex;align-items:baseline;gap:8px"><div class="attrbox "><div class="nm">战力</div><div class="vl">119414</div></div><button class="btn mini" onclick="togglePowerBrk()">构成</button></div><div id="powerBrk" style="grid-column:1/-1;margin-top:2px"></div><div class="muted" style="grid-column:1/-1;font-size:11px;margin-top:2px">四维普通人为 5 · 战力以普通人 5 为基准</div></div>
+    <div id="topStats"></div>
+    <div id="hudLunhui" style="margin-bottom:10px;font-size:11.5px;line-height:1.6"></div>
+    <div id="layout">
+      <div>
+        <div class="card">
+          <h3>属性</h3>
+          <div id="sideAttrs" class="attrgrid"></div>
         </div>
-        <div class="card" style="margin-top:16px" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">武魂 · 魂环</h3>
-          <div id="hudSoul" data-doubao-translate-traverse-mark="1"><span class="soulname q-ding">蓝电霸王龙</span>（顶级武魂）· 先天魂力 7
-     <div class="muted" style="font-size:12px">兽武魂 · 修炼速率 ×1.55 · 属性倾向：力量/体质/敏捷</div></div>
-          <div id="dualSoul" class="muted" style="font-size:12px;margin-top:4px" data-doubao-translate-traverse-mark="1"></div>
-          <div id="ringSlots" class="ringslots" data-doubao-translate-traverse-mark="1"><span class="ringslot rl-100" title="第1魂环 · 269年 · 第一·扑杀">1</span><span class="ringslot rl-100" title="第2魂环 · 714年 · 第二·狂化">2</span><span class="ringslot rl-100" title="第3魂环 · 822年 · 第三·镇魂">3</span><span class="ringslot rl-1000" title="第4魂环 · 2.7千年 · 第四·兽王威">4</span><span class="ringslot rl-1000" title="第5魂环 · 8.5千年 · 第五·咆哮">5</span><span class="ringslot rl-10000" title="第6魂环 · 2.4万年 · 第六·裂天爪">6</span><span class="ringslot rl-10000" title="第7魂环 · 5.6万年 · 第七·撕咬">7</span><span class="ringslot rl-10000" title="第8魂环 · 7.5万年 · 第八·疾风">8</span><span class="ringslot rl-10000" title="第9魂环 · 8.8万年 · 第九·噬魂">9</span></div>
-          <div id="hudRingInfo" style="font-size:12.5px;color:var(--dim);line-height:1.8" data-doubao-translate-traverse-mark="1">第1环 · 269年 闪电貂 · 魂技 第一·扑杀<br>第2环 · 714年 紫电雕 · 魂技 第二·狂化<br>第3环 · 822年 闪电貂 · 魂技 第三·镇魂<br>第4环 · 2.7千年 雷纹虎 · 魂技 第四·兽王威<br>第5环 · 8.5千年 雷霆蜥蜴 · 魂技 第五·咆哮<br>第6环 · 2.4万年 紫电雕 · 魂技 第六·裂天爪<br>第7环 · 5.6万年 裂地猿 · 魂技 第七·撕咬<br>第8环 · 7.5万年 紫电雕 · 魂技 第八·疾风<br>第9环 · 8.8万年 七彩灵鹿 · 魂技 第九·噬魂<br><b style="color:#e0763a">魂骨</b> 万年·左臂骨</div>
-          <div id="hudChain" class="chainbox" data-doubao-translate-traverse-mark="1"></div>
+        <div class="card" style="margin-top:16px">
+          <h3>武魂 · 魂环</h3>
+          <div id="hudSoul"></div>
+          <div id="dualSoul" class="muted" style="font-size:12px;margin-top:4px"></div>
+          <div id="ringSlots" class="ringslots"></div>
+          <div id="hudRingInfo" style="font-size:12.5px;color:var(--dim);line-height:1.8"></div>
+          <div id="hudChain" class="chainbox"></div>
         </div>
-        <div class="card" style="margin-top:16px" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">人生轨迹</h3>
-          <div id="hudLife" style="font-size:13px;line-height:1.9" data-doubao-translate-traverse-mark="1">加入 史莱克学院<br>道侣 救下的孤女<br></div>
+        <div class="card" style="margin-top:16px">
+          <h3>人生轨迹</h3>
+          <div id="hudLife" style="font-size:13px;line-height:1.9"></div>
         </div>
       </div>
-      <div data-doubao-translate-traverse-mark="1">
-        <div class="card" data-doubao-translate-traverse-mark="1">
-          <h3 id="actionTitle" data-doubao-translate-traverse-mark="1">第 68 岁 · 选择今年如何度过</h3>
-          <div id="actionBtns" data-doubao-translate-traverse-mark="1"><button class="btn" title="闭关潜修，魂力稳步增长，但消耗金魂币。">苦修 <span style="font-size:11px;color:var(--dim)">魂力+0.65（99→99） · -25金</span></button><button class="btn" title="游历大陆、猎杀魂兽，属性与战力增长最快，也最危险。">历练 <span style="font-size:11px;color:var(--dim)">魂力+0.36（99→99）</span></button><button class="btn" title="拜师交友、经营人脉，悟性与机缘。">交游 <span style="font-size:11px;color:var(--dim)">魂力+0.32（99→99）</span></button><button class="btn" title="经商任务赚取金魂币，贴补修炼资源。">经营 <span style="font-size:11px;color:var(--dim)">魂力+0.27（99→99）</span></button><button class="btn" title="向宗门捐献金魂币，兑换声望与师承资源（金钱换声望）。">宗门贡献 <span style="font-size:11px;color:var(--dim)">-312金 · 声望+3 · 悟性力量微增</span></button><button class="btn" title="消耗金魂币购买魂导器，永久提升属性（后期金钱出口）。">魂导阁</button><button class="btn btn-locked" title="神格资历未臻圆满：需 四维综合≥300（当前851）、天命≥75、悟性≥75、战力≥150000（当前119414）" disabled="">自创神位</button></div>
-          <div id="eventBox" data-doubao-translate-traverse-mark="1"><div class="muted">你臻至 99 级极限斗罗，却始终无缘神位传承——天地不渡你，你便自渡。<b>自创神位</b>：以己身之道凝聚神格、自立神位，要求更在继承之上（<b>四维综合≥300、天命≥75、悟性≥75、战力≥150000</b>），成功率低微，失败或身死道消。</div></div>
-          <div id="shopPanel" style="display:none;margin-top:10px" data-doubao-translate-traverse-mark="1"></div>
-          <div id="hudInfo" class="muted" style="font-size:12px;margin-top:8px" data-doubao-translate-traverse-mark="1"></div>
+      <div>
+        <div class="card">
+          <h3 id="actionTitle">选择今年如何度过</h3>
+          <div id="actionBtns"></div>
+          <div id="eventBox"></div>
+          <div id="shopPanel" style="display:none;margin-top:10px"></div>
+          <div id="hudInfo" class="muted" style="font-size:12px;margin-top:8px"></div>
         </div>
-        <div class="card" style="margin-top:16px" data-doubao-translate-traverse-mark="1">
-          <h3 data-doubao-translate-traverse-mark="1">日志</h3>
-          <div id="logBox" data-doubao-translate-traverse-mark="1"><div class="entry sys">六岁生辰，女儿蓝电霸王龙（顶级武魂）觉醒，先天魂力7级，魂力自 <b>7 级</b> 起步。</div><div class="entry good">—— 轮回余荫庇佑，今生得蒙 <b>家财万贯、天生灵骨、福缘深厚</b>。</div><div class="entry sys">【事件】偷学秘籍（紫品质）</div><div class="entry note">—— 高品质事件「最后的兽潮」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】最后的兽潮（黑品质）</div><div class="entry sys"><b>苦修</b> 魂力 +3（7级 → 10级）</div><div class="entry sys">魂力抵达 <b>10级</b> 关口，需猎取魂环方可突破！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+4 / 敏捷+1 / 体质+4 / 精神力+3</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获269年·<b>闪电貂</b>（百年魂兽），获得优良武魂魂环，魂技「第一·扑杀」，战力大增。</div><div class="entry good"><b>魂师突破！</b>魂力初凝，跨入魂师之列！（全属性 +3）</div><div class="entry sys">【事件】初级魂师学院（黄品质）</div><div class="entry sys">悟性 +1</div><div class="entry sys"><b>苦修</b> 魂力 +9（11级 → 20级）<span class="muted">（境界衰减 ×0.98）</span></div><div class="entry sys">魂力抵达 <b>20级</b> 关口，需猎取魂环方可突破！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+3 / 敏捷+1 / 体质+3 / 精神力+2</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获714年·<b>紫电雕</b>（百年魂兽），获得优良武魂魂环，魂技「第二·狂化」，战力大增。</div><div class="entry good"><b>大魂师突破！</b>魂力鼓荡，晋入大魂师之境！（全属性 +3）</div><div class="entry note">第 8 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +9（21级 → 30级）<span class="muted">（境界衰减 ×0.96）</span></div><div class="entry sys">魂力抵达 <b>30级</b> 关口，需猎取魂环方可突破！</div><div class="entry bad"><b>猎魂失败！</b>千年魂兽濒死反扑，你身受重伤（体质-19）。</div><div class="entry note">捡回一条命。魂力受损，来年再战。</div><div class="entry sys">【事件】村中猎魂（白品质）</div><div class="entry sys">悟性 +1（武魂共鸣，收益×1.25）</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+4 / 敏捷+1 / 体质+4 / 精神力+3</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获822年·<b>闪电貂</b>（百年魂兽），获得优良武魂魂环，魂技「第三·镇魂」，战力大增。</div><div class="entry good"><b>魂尊突破！</b>魂力化液，踏入魂尊之境！（全属性 +3）</div><div class="entry sys">【事件】偷学秘籍（紫品质）</div><div class="entry sys">家境 +2</div><div class="entry sys"><b>苦修</b> 魂力 +8.71（31级 → 39级）<span class="muted">（境界衰减 ×0.94）</span></div><div class="entry sys">【事件】寒潭淬体（紫品质）</div><div class="entry sys">悟性 +1</div><div class="entry sys"><b>苦修</b> 魂力 +0.29（39级 → 40级）<span class="muted">（境界衰减 ×0.94）</span></div><div class="entry bad">强行冲关，走火入魔！魂力倒退 0.64 级，经脉受损。</div><div class="entry sys">【事件】学院比试（黄品质）</div><div class="entry sys">悟性 +1</div><div class="entry sys"><b>苦修</b> 魂力 +0.64（39级 → 40级）<span class="muted">（境界衰减 ×0.94）</span></div><div class="entry sys">魂力抵达 <b>40级</b> 关口，需猎取魂环方可突破！</div><div class="entry bad"><b>猎魂失败！</b>千年魂兽濒死反扑，你身受重伤（体质-21）。</div><div class="entry note">捡回一条命。魂力受损，来年再战。</div><div class="entry sys">【事件】秘境小试（紫品质）</div><div class="entry sys">悟性 +1（品质共鸣，收益×1.20）</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+9 / 敏捷+5 / 体质+9 / 精神力+5</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获2.7千年·<b>雷纹虎</b>（千年魂兽），获得优良武魂魂环，魂技「第四·兽王威」，战力大增。</div><div class="entry good"><b>魂宗突破！</b>魂力凝浆，晋升魂宗！（全属性 +3）</div><div class="entry sys">【事件】宗门择主</div><div class="entry sys">你加入了 <b>史莱克学院</b>——怪物集训·悟性成长+10%、金魂币获取+10%，宗门声望 +15。</div><div class="entry sys"><b>苦修</b> 魂力 +6.23（41级 → 47级）<span class="muted">（境界衰减 ×0.92）</span></div><div class="entry sys">【事件】怪物集训（紫品质）</div><div class="entry sys">体质 +4</div><div class="entry sys">力量 +3</div><div class="entry sys"><b>苦修</b> 魂力 +2.77（47级 → 50级）<span class="muted">（境界衰减 ×0.92）</span></div><div class="entry sys">魂力抵达 <b>50级</b> 关口，需猎取魂环方可突破！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+9 / 敏捷+5 / 体质+9 / 精神力+5</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获8.5千年·<b>雷霆蜥蜴</b>（千年魂兽），获得优良武魂魂环，魂技「第五·咆哮」，战力大增。</div><div class="entry good"><b>魂王突破！</b>魂力如涛，登临魂王！（全属性 +3）</div><div class="entry sys">【事件】索托斗魂场（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +4.55（51级 → 55级）<span class="muted">（境界衰减 ×0.90）</span></div><div class="entry sys">【事件】死亡峡谷（紫品质）</div><div class="entry sys">体质 +4（品质共鸣，收益×1.20）</div><div class="entry sys"><b>苦修</b> 魂力 +4.45（55级 → 60级）<span class="muted">（境界衰减 ×0.90）</span></div><div class="entry sys">魂力抵达 <b>60级</b> 关口，需猎取魂环方可突破！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+19 / 敏捷+11 / 体质+19 / 精神力+11</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获2.4万年·<b>紫电雕</b>（万年魂兽），获得优良武魂魂环，魂技「第六·裂天爪」，战力大增。</div><div class="entry good"><b>魂帝突破！</b>魂力化罡，成就魂帝！（全属性 +3）</div><div class="entry note">—— 高品质事件「怪物之心」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】怪物之心（黑品质）</div><div class="entry good"><b>5% 全属性永久加成！</b>（力量 139 / 敏捷 85 / 体质 103 / 精神力 92 / 悟性 62）</div><div class="entry good"><b>事件链「史莱克怪物」全部完成！</b>一段完整的机缘就此落下帷幕。</div><div class="entry sys"><b>苦修</b> 魂力 +3.42（61级 → 64级）<span class="muted">（境界衰减 ×0.88）</span></div><div class="entry sys">【事件】偶遇仙草（黄品质）</div><div class="entry sys">体质 +8</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +3.48（64级 → 67级）<span class="muted">（境界衰减 ×0.88）</span></div><div class="entry sys">【事件】街市帮工（白品质）</div><div class="entry good">金魂币 +40</div><div class="entry sys">体质 +1</div><div class="entry sys"><b>苦修</b> 魂力 +2.11（67级 → 70级）<span class="muted">（境界衰减 ×0.88）</span></div><div class="entry sys">魂力抵达 <b>70级</b> 关口，需猎取魂环方可突破！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+15 / 敏捷+9 / 体质+15 / 精神力+9</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获5.6万年·<b>裂地猿</b>（万年魂兽），获得优良武魂魂环，魂技「第七·撕咬」，战力大增。</div><div class="entry good"><b>魂圣突破！</b>魂力化域，踏入魂圣之境！（全属性 +3）</div><div class="entry sys">【事件】地下武斗（黄品质）</div><div class="entry sys"><b>苦修</b> 魂力 +2.31（71级 → 73级）<span class="muted">（境界衰减 ×0.85）</span></div><div class="entry note">—— 高品质事件「神界灌顶」（金品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】神界灌顶（金品质）</div><div class="entry good">魂力等级 +12！</div><div class="entry sys">悟性 +2</div><div class="entry sys">天命 +8</div><div class="entry good"><b>天命眷顾！</b>神光灌顶，魂力暴涨，你与神界的距离，似乎只隔着一层薄纱。4 年内修炼速度 <b>×4</b>——你仿佛被命运选中，直奔传说而去！</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+19 / 敏捷+11 / 体质+19 / 精神力+11</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获7.5万年·<b>紫电雕</b>（万年魂兽），获得优良武魂魂环，魂技「第八·疾风」，战力大增。</div><div class="entry good"><b>魂斗罗突破！</b>魂力融魂，晋位魂斗罗！（全属性 +3）</div><div class="entry note">—— 高品质事件「杀戮之都」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】杀戮之都（黑品质）</div><div class="entry sys">悟性 +2（品质共鸣，收益×1.20）</div><div class="entry sys"><b>苦修</b> 魂力 +4（86级 → 90级）<span class="muted">（境界衰减 ×0.83）</span></div><div class="entry sys">魂力抵达 <b>90级</b> 关口，需猎取魂环方可突破！</div><div class="entry good"><b>爆出魂骨！</b>8.8万年魂兽竟凝出<b>万年·左臂骨</b>，力量+18、体质+9，融骨入体，根基更厚。</div><div class="entry good">魂环之力洗炼四肢百骸——四维增幅 <b>力量+15 / 敏捷+9 / 体质+15 / 精神力+9</b>，魂环年限越高，肉身与神魂的蜕变越惊人。</div><div class="entry good"><b>猎魂成功！</b>你斩获8.8万年·<b>七彩灵鹿</b>（万年魂兽），获得优良武魂魂环，魂技「第九·噬魂」，战力大增。</div><div class="entry good"><b>封号斗罗突破！</b>魂力通天，受封封号斗罗，名震大陆！（全属性 +3）</div><div class="entry note">—— 高品质事件「武魂变异」（红品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】武魂变异（红品质）</div><div class="entry note">武魂隐隐躁动，却终究归于沉寂。</div><div class="entry sys"><b>苦修</b> 魂力 +3.89（91级 → 94级）<span class="muted">（境界衰减 ×0.78）</span></div><div class="entry sys">【事件】佣兵任务（黄品质）</div><div class="entry good">金魂币 +100</div><div class="entry sys"><b>苦修</b> 魂力 +0.86（94级 → 95级）<span class="muted">（境界衰减 ×0.69）</span></div><div class="entry note">第 26 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.82（95级 → 96级）<span class="muted">（境界衰减 ×0.66）</span></div><div class="entry note">第 27 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.78（96级 → 97级）<span class="muted">（境界衰减 ×0.63）</span></div><div class="entry note">—— 高品质事件「天机老人」（红品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】天机老人（红品质）</div><div class="entry sys">天命 +8</div><div class="entry sys">悟性 +2</div><div class="entry good"><b>机缘引线：</b>命运之线悄然系上。</div><div class="entry sys"><b>苦修</b> 魂力 +0.74（97级 → 98级）<span class="muted">（境界衰减 ×0.59）</span></div><div class="entry sys">【事件】玄天宝录（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（98级 → 98级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry good">你在尘世救下一位孤女，她从此与你相依为命。</div><div class="entry sys">【事件】玄天暗器（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys">敏捷 +5</div><div class="entry sys">精神力 +5</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（98级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">你已臻至 99 级极限斗罗，凡人的修炼已到尽头……</div><div class="entry sys">【事件】玄天心法（紫品质）</div><div class="entry sys">悟性 +3</div><div class="entry sys">精神力 +10</div><div class="entry sys">力量 +6</div><div class="entry good"><b>事件链「唐门奇遇」全部完成！</b>一段完整的机缘就此落下帷幕。</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】吞服秘丹（紫品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">第 33 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】故友重逢（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys">家境 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】豪赌一夜（紫品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">第 36 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】建宗立派（黄品质）</div><div class="entry sys">家境 -6</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】吞服秘丹（紫品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「海神之光」（红品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】海神之光（红品质）</div><div class="entry sys">体质 +14</div><div class="entry sys">精神力 +14</div><div class="entry sys">天命 +12</div><div class="entry good"><b>天命眷顾！</b>海神之光洗炼神魂，你仿佛听见了来自万顷碧波的神谕。5 年内修炼速度 <b>×4</b>——你仿佛被命运选中，直奔传说而去！</div><div class="entry sys"><b>苦修</b> 魂力 +2.76（99级 → 101级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「武魂殿围剿」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】武魂殿围剿（黑品质）</div><div class="entry sys">家境 +5</div><div class="entry sys"><b>苦修</b> 魂力 +2.78（99级 → 101级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】山中采药（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry good">金魂币 +60</div><div class="entry sys"><b>苦修</b> 魂力 +2.79（99级 → 101级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】商队护卫（黄品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +2.79（99级 → 101级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】故友重逢（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys">家境 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】宗门内斗（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】突破之机（黄品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys">家境 -2</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】化形魂兽（紫品质）</div><div class="entry sys">精神力 +10（武魂共鸣，收益×1.25）</div><div class="entry sys">悟性 +2（武魂共鸣，收益×1.25）</div><div class="entry sys"><b>苦修</b> 魂力 +0.71（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】山中采药（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry good">金魂币 +60</div><div class="entry sys"><b>苦修</b> 魂力 +0.71（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">第 48 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.71（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry sys">【事件】山中采药（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry good">金魂币 +60</div><div class="entry sys"><b>苦修</b> 魂力 +0.71（99级 → 99级）<span class="muted">（境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「生死斗」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】生死斗（黑品质）</div><div class="entry good"><b>生死斗 · 生还！</b>黑角斗场的死斗中你力斩强敌，赢得金魂币 3078、声望 +15，从尸山血海中全身而退。</div><div class="entry sys"><b>苦修</b> 魂力 +0.71（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.99，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】吞服秘丹（紫品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.99，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】故友重逢（白品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys">家境 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.98，境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「冰火两仪眼」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】冰火两仪眼（黑品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.97，境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「冰火抉择」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】冰火抉择（黑品质）</div><div class="entry sys"><b>苦修</b> 魂力 +0.69（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.96，境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「玄冰炼体」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】玄冰炼体（黑品质）</div><div class="entry sys">体质 +10</div><div class="entry sys">力量 +6</div><div class="entry good"><b>事件链「冰火两仪眼」全部完成！</b>一段完整的机缘就此落下帷幕。</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.96，境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「十万年故交」（红品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】十万年故交（红品质）</div><div class="entry sys">力量 +15（武魂共鸣，收益×1.25）</div><div class="entry sys">体质 +13（武魂共鸣，收益×1.25）</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.95，境界衰减 ×0.53）</span></div><div class="entry note">第 57 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.94，境界衰减 ×0.53）</span></div><div class="entry note">—— 高品质事件「生死斗」（黑品）触发，自动暂停2秒 ——</div><div class="entry sys">【事件】生死斗（黑品质）</div><div class="entry good"><b>生死斗 · 生还！</b>黑角斗场的死斗中你力斩强敌，赢得金魂币 3078、声望 +15，从尸山血海中全身而退。</div><div class="entry sys"><b>苦修</b> 魂力 +0.7（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.93，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】商队护卫（黄品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.69（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.93，境界衰减 ×0.53）</span></div><div class="entry note">第 60 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.69（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.92，境界衰减 ×0.53）</span></div><div class="entry bad">强行冲关，走火入魔！魂力倒退 0.2 级，经脉受损。</div><div class="entry note">第 61 岁 · 这一年风平浪静，平平安安。</div><div class="entry sys"><b>苦修</b> 魂力 +0.68（98级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.91，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】冲击极限（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.91，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】冲击极限（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.67（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.90，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】传功长老（黄品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.66（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.89，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】冲击极限（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.66（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.88，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】冲击极限（紫品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.65（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.88，境界衰减 ×0.53）</span></div><div class="entry sys">【事件】传功长老（黄品质）</div><div class="entry sys">悟性 +2</div><div class="entry sys"><b>苦修</b> 魂力 +0.65（99级 → 99级）<span class="muted">（50岁后修炼衰减 ×0.87，境界衰减 ×0.53）</span></div><div class="entry bad">强行冲关，走火入魔！魂力倒退 0.2 级，经脉受损。</div><div class="entry bad">—— 走火入魔，经脉尽断 ——</div></div>
+        <div class="card" style="margin-top:16px">
+          <h3>日志</h3>
+          <div id="logBox"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="screen-end" class="screen" data-doubao-translate-traverse-mark="1">
-    <div class="center" data-doubao-translate-traverse-mark="1">
-      <div class="end-title q-ding" id="endTitle" data-doubao-translate-traverse-mark="1">超级斗罗 · 惊世之才</div>
-      <div id="endScore" style="margin-bottom:16px;font-size:14px" data-doubao-translate-traverse-mark="1">
-    <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
-      <span class="score-big">3175</span>
-      <span style="text-align:left">综合评分 · 无上限<br><span class="muted" style="font-size:13px">享年 <b>68</b> 岁 · 魂力 <b>98级</b> · 战力 <b>93207</b> · 蓝电霸王龙（顶级武魂） · 封号「蓝电斗罗」</span></span>
-    </div>
-    <div class="muted" style="margin-top:8px">轮回点 <b class="cost">+4</b> <span style="font-size:12px">（按境界保底+评分加成：凡人+1 · 90级以下+2 · 90~98级+3 · 99级+4 · 成神+6，评分高再上浮）</span></div>
-    </div>
-      <div style="width:100%;max-width:560px" data-doubao-translate-traverse-mark="1">
-        <div class="end-box" id="endEval"><h3>一世评语</h3><div class="end-eval-p">蓝电霸王龙超级斗罗，98 级巅峰战力 93,207。世人皆称你「蓝电斗罗」。你已跨入大陆最巅峰的极少数之列，距极限斗罗仅一步之遥，于史莱克学院名震天下。</div><div class="end-eval-p">兽武魂傍身，你走的是最纯粹的以力证道之路，一身血勇与野性，是刻在骨子里的。顶级武魂，天生王者之姿，血脉里流淌着强者的印记，一呼一吸间皆是天骄气象。 一生留名：事件链·史莱克怪物、逆天机缘、魂骨、事件链·唐门奇遇、事件链·冰火两仪眼。</div><div class="end-eval-p">一生际遇：入史莱克学院、结缡救下的孤女。享年 68 岁。 极限斗罗的门槛，你已摸到了边。</div><div class="end-eval-p">你一生谨慎持重，稳字当头，终究稳出了自己的道。</div></div>
-        <div class="end-box" id="endSummary"><div class="es-block"><div class="es-row"><b>姓名</b>温酒</div><div class="es-row"><b>性格</b>沉稳</div><div class="es-row"><b>性别</b>女</div><div class="es-row"><b>武魂</b>蓝电霸王龙（顶级武魂）</div><div class="es-row"><b>先天魂力</b>7级</div><div class="es-row"><b>魂环</b><span class="es-rings"><span class="ering rl-100">第1环 · 269年 闪电貂「第一·扑杀」</span><span class="ering rl-100">第2环 · 714年 紫电雕「第二·狂化」</span><span class="ering rl-100">第3环 · 822年 闪电貂「第三·镇魂」</span><span class="ering rl-1000">第4环 · 2.7千年 雷纹虎「第四·兽王威」</span><span class="ering rl-1000">第5环 · 8.5千年 雷霆蜥蜴「第五·咆哮」</span><span class="ering rl-10000">第6环 · 2.4万年 紫电雕「第六·裂天爪」</span><span class="ering rl-10000">第7环 · 5.6万年 裂地猿「第七·撕咬」</span><span class="ering rl-10000">第8环 · 7.5万年 紫电雕「第八·疾风」</span><span class="ering rl-10000">第9环 · 8.8万年 七彩灵鹿「第九·噬魂」</span></span></div><div class="es-row"><b>魂骨</b><span class="es-rings"><span class="ering rl-10000">万年·左臂骨</span></span></div></div><div class="es-block"><div class="es-row"><b>最终属性</b></div><div class="es-attrs"><span class="es-attr ">体质<b> 248</b></span><span class="es-attr fight">力量<b> 274</b></span><span class="es-attr fight">敏捷<b> 141</b></span><span class="es-attr psi">精神力<b> 182</b></span><span class="es-attr ">悟性<b> 98</b></span><span class="es-attr ">家境<b> 54</b></span><span class="es-attr ">天命<b> 52</b></span><span class="es-attr fight">战力<b> 93207</b></span></div></div><div class="es-block"><div class="es-row"><b>势力</b>史莱克学院</div><div class="es-row"><b>道侣</b>救下的孤女</div><div class="es-row"><b>结局</b>走火入魔，经脉尽断</div><div class="es-row"><b>成就</b>事件链·史莱克怪物、逆天机缘、魂骨、事件链·唐门奇遇、事件链·冰火两仪眼</div></div></div>
+  <div id="screen-end" class="screen">
+    <div class="center">
+      <div class="end-title" id="endTitle"></div>
+      <div id="endScore" style="margin-bottom:16px;font-size:14px"></div>
+      <div style="width:100%;max-width:560px">
+        <div class="end-box" id="endEval"></div>
+        <div class="end-box" id="endSummary"></div>
         <div class="end-box" id="endLife" style="display:none;max-height:320px;overflow:auto;margin-top:14px"></div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap" data-doubao-translate-traverse-mark="1">
-        <button class="btn primary" id="btnAgain" data-doubao-translate-traverse-mark="1">轮回重开</button>
-        <button class="btn" id="btnLifeLog" data-doubao-translate-traverse-mark="1">查看本局历程</button>
-        <button class="btn" id="btnBackStart" data-doubao-translate-traverse-mark="1">返回轮回殿</button>
+      <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn primary" id="btnAgain">轮回重开</button>
+        <button class="btn" id="btnLifeLog">查看本局历程</button>
+        <button class="btn" id="btnBackStart">返回轮回殿</button>
       </div>
     </div>
   </div>
 </div>
 
-<script data-doubao-translate-traverse-mark="1">
-/* ============ 规则集标识 ============ */
-const RULESET = 'DL_RS_3_20260831';
+<script>const RULESET = 'DL_RS_3_20260831';
 
 /* ============ 配置 ============ */
 const CFG = {
@@ -1631,6 +1549,7 @@ $('btnAccept').onclick = ()=>{
   G._bodyAwake = 'none'; // DL_RS_4.137：本体武魂二次觉醒状态（无/黑铁/青铜/白银/黄金）
   G.exclusiveUsed = {}; G.onceUsed = {}; G.chain = null; G.lifeCap = null; G._tier = -1;
   G.artifacts = {}; // DL_RS_4.47：魂导器持有（突破判定已取消）
+  G._orgRecruitCount = 0; // DL_RS_4.173：新游戏重置势力招揽触发次数
   // DL_RS_4.97：清理旧版神劫兼容遗留字段（_godTrial/_qualNotified，无读取点）
   // DL_RS_4.116：来世天赋——指定一次高品质事件（本局必触发）
   G._giftEv = GIFT.evQ || null;
@@ -2397,6 +2316,107 @@ const ORG_BONUS = {
   '天南宗': {trend:{力量:1.06,敏捷:1.06,体质:1.06,精神力:1.06}, desc:'中庸之道·全属性成长+6%'},
   '自建宗门': {prestigeMult:1.6, wuMult:1.10, trend:{力量:1.05,敏捷:1.05,体质:1.05,精神力:1.05}, desc:'宗主之尊·声望获取+60%、悟性成长+10%、全属性成长+5%'}
 };
+/* ============ 势力加入要求（DL_RS_4.173：不同势力不同门槛，契合原著） ============ */
+const ORG_REQ = {
+  '昊天宗': {
+    minAge: 16,
+    check: function(g){
+      const s=g.soul||{};
+      if(s.name==='昊天锤') return {pass:true};
+      if(['ding','super','shen'].indexOf(s.quality)>=0 && g.a.天命>=60) return {pass:true};
+      return {pass:false, reason:'需昊天锤武魂，或顶级以上武魂+天命≥60'};
+    }
+  },
+  '蓝电霸王龙家族': {
+    minAge: 14,
+    check: function(g){
+      const s=g.soul||{};
+      if(s.name==='蓝电霸王龙') return {pass:true};
+      if(/龙|蛟/.test(s.name||'') && ['you','ding','super','shen'].indexOf(s.quality)>=0 && g.a.体质>=30) return {pass:true};
+      return {pass:false, reason:'需蓝电霸王龙武魂，或龙类兽武魂+优良以上+体质≥30'};
+    }
+  },
+  '七宝琉璃宗': {
+    minAge: 14,
+    check: function(g){
+      const s=g.soul||{};
+      if(/七宝琉璃塔|九宝琉璃塔/.test(s.name||'')) return {pass:true};
+      if(s.cat==='qi' && /塔|铃|镜|环|如意|冠|葫芦|瓶|鼎|钟|印|书|笔|琴|笛|箫|珠|尺|伞|扇|权杖|镰/.test(s.name||'')) return {pass:true};
+      if(['ding','super','shen'].indexOf(s.quality)>=0) return {pass:true};
+      return {pass:false, reason:'需辅助系武魂（塔/铃/镜等），或顶级以上武魂'};
+    }
+  },
+  '史莱克学院': {
+    minAge: 12,
+    check: function(g){
+      const s=g.soul||{};
+      if(['you','ding','super','shen'].indexOf(s.quality)>=0) return {pass:true};
+      if(s.xian>=8) return {pass:true};
+      if(g.a.悟性>=50) return {pass:true};
+      return {pass:false, reason:'只收怪物：优良以上武魂，或先天魂力≥8，或悟性≥50'};
+    }
+  },
+  '武魂殿': {
+    minAge: 12,
+    check: function(g){
+      const s=g.soul||{};
+      if(s.quality!=='fei') return {pass:true};
+      return {pass:false, reason:'需普通以上武魂'};
+    }
+  },
+  '天斗皇家学院': {
+    minAge: 12,
+    check: function(g){
+      if(g.a.家境>=50) return {pass:true};
+      return {pass:false, reason:'需家境≥50（贵族出身）'};
+    }
+  },
+  '星罗帝国军方': {
+    minAge: 16,
+    check: function(g){
+      if(g.a.力量+g.a.体质>=40) return {pass:true};
+      return {pass:false, reason:'需力量+体质≥40'};
+    }
+  },
+  '象甲宗': {
+    minAge: 14,
+    check: function(g){
+      const s=g.soul||{};
+      if(g.a.体质>=25) return {pass:true};
+      if(/犀|熊|象|巨/.test(s.name||'')) return {pass:true};
+      return {pass:false, reason:'需体质≥25，或犀/熊/象系武魂'};
+    }
+  },
+  '白虎宗': {
+    minAge: 14,
+    check: function(g){
+      const s=g.soul||{};
+      if(g.a.力量>=25) return {pass:true};
+      if(/虎|豹/.test(s.name||'')) return {pass:true};
+      return {pass:false, reason:'需力量≥25，或虎/豹系武魂'};
+    }
+  },
+  '风剑宗': {
+    minAge: 14,
+    check: function(g){
+      const s=g.soul||{};
+      if(g.a.敏捷>=25) return {pass:true};
+      if(/鹰|燕|风|剑/.test(s.name||'')) return {pass:true};
+      return {pass:false, reason:'需敏捷≥25，或鹰/燕/风/剑系武魂'};
+    }
+  },
+  '天南宗': {
+    minAge: 12,
+    check: function(){ return {pass:true}; }
+  }
+};
+function orgReqPass(org){
+  const g=G, r=ORG_REQ[org];
+  if(!r) return {pass:true};
+  if(g.age < r.minAge) return {pass:false, reason:'需年满'+r.minAge+'岁'};
+  return r.check(g);
+}
+
 function orgTrend(k){
   if(!G || !G.org || !ORG_BONUS[G.org]) return 1;
   const t = ORG_BONUS[G.org].trend;
@@ -2431,14 +2451,35 @@ function orgWeight(org){
 /* 14岁「宗门择主」事件：按家境给候选池、按武魂加权排序、玩家自主选择（可散修） */
 function buildOrgSelectEvent(){
   const g=G;
-  const pool = g.a.家境>=60
+  // 家境分层候选池（保留原有逻辑）
+  let pool = g.a.家境>=60
     ? ['昊天宗','七宝琉璃宗','蓝电霸王龙家族','武魂殿','史莱克学院','天斗皇家学院']
     : ['武魂殿','史莱克学院','天斗皇家学院','星罗帝国军方','象甲宗','白虎宗','风剑宗','天南宗'];
-  pool.sort((a,b)=>orgWeight(b)-orgWeight(a));
-  const opts = pool.map(org=>{
+  // DL_RS_4.173：按势力加入要求过滤——不满足要求的不显示（避免玩家选了才发现进不去）
+  const available = [];
+  const locked = [];
+  pool.forEach(function(org){
+    const r = orgReqPass(org);
+    if(r.pass) available.push(org);
+    else locked.push({name:org, reason:r.reason});
+  });
+  // 保底：如果过滤后为空，自动加入天南宗（无门槛）
+  if(available.length===0){
+    available.push('天南宗');
+  }
+  // 按武魂匹配度加权排序
+  available.sort(function(a,b){ return orgWeight(b)-orgWeight(a); });
+  const opts = available.map(function(org){
     const b=ORG_BONUS[org]||{};
     return {label:org+(b.desc?('·'+b.desc):''), eff:{}, _org:org};
   });
+  // 显示被锁定的势力（灰色+原因，让玩家知道目标）
+  if(locked.length){
+    opts.push({label:'—— 以下势力暂未达到加入条件 ——', eff:{}, _lockedHeader:true, _disabled:true});
+    locked.forEach(function(l){
+      opts.push({label:l.name+'（'+l.reason+'）', eff:{}, _org:l.name, _locked:true, _disabled:true});
+    });
+  }
   opts.push({label:'婉拒各方，暂为散修（保留武魂殿招揽等机缘）', eff:{}, _org:''});
   return {name:'宗门择主', text:'十四岁，武魂觉醒的少年郎迎来命运的分岔口——多家势力向你递来橄榄枝，是择木而栖，还是独行天下？', opts, _orgSelect:true, _special:true};
 }
@@ -2446,6 +2487,7 @@ function joinOrg(org){
   const g=G;
   if(!org){ g.org=''; addLog('你婉拒了各方势力，云游四方，静待机缘。','note'); return; }
   g.org = org;
+  g._orgRecruitCount = 3; // DL_RS_4.173：加入势力后锁定，不再触发势力招揽
   const b = ORG_BONUS[org]||{};
   let pre = 10;
   if(org==='武魂殿') pre=20; else if(org==='史莱克学院') pre=15;
@@ -2673,8 +2715,7 @@ function resolveHunt(choice, idx){
     g.rings.push({q:rq, skill, choice, y:ry, beast, ele, sync});
     g.skills.push(skill);
     g.prestige += 5;
-    absorbBone(ry); // DL_RS_4.37：魂骨掉落与吸收（六部位，年限越高越易出骨、越好）
-    extraBoneRoll(ry, beast); // DL_RS_4.110：外附魂骨——极小概率爆出（蛛蝎类更易），不占六部位
+
     let logTxt = `<b>猎魂成功！</b>你斩获${yearStr(ry)}·<b>${beast}</b>（${beastYearDesc(ry)}），获得${Q_KEYS[rq]}魂环，魂技「${skill}」`;
     if(g.dual){
       const dq = (idx===8&&choice==='猛')?'shen':(rq==='pu'?'you':rq);
@@ -2687,8 +2728,10 @@ function resolveHunt(choice, idx){
       logTxt += `；副武魂 ${g.dual.name} 同获${CFG.ring.skillName[idx]}「${dskill}」`;
     }
     logTxt += `，战力大增。`;
-    if(yb[3]>0) addLog(`魂环之力洗炼四肢百骸——四维增幅 <b>力量+${yb[0]} / 敏捷+${yb[1]} / 体质+${yb[2]} / 精神力+${yb[3]}</b>，魂环年限越高，肉身与神魂的蜕变越惊人。`,'good');
     addLog(logTxt,'good');
+    if(yb>0) addLog(`魂环之力洗炼四肢百骸——四维增幅 <b>力量+${yb} / 敏捷+${yb} / 体质+${yb} / 精神力+${yb}</b>，魂环年限越高，肉身与神魂的蜕变越惊人。`,'good');
+    absorbBone(ry); // DL_RS_4.37：魂骨掉落与吸收（六部位，年限越高越易出骨、越好）
+    extraBoneRoll(ry, beast); // DL_RS_4.110：外附魂骨——极小概率爆出（蛛蝎类更易），不占六部位
     if(ry >= 100000){
       if(g.achievements.indexOf('十万年魂环')<0) g.achievements.push('十万年魂环');
       if(choice==='猛'){ a.体质+=10; addLog('十万年魂兽兽血淬体，肉身再次蜕变！','good'); }
@@ -3202,8 +3245,24 @@ function triggerEvent(){
   const g=G;
   const band = g.age<14?0 : g.age<30?1 : g.age<60?2 : 3;
   // 强制事件
-  if(g.soul.xian>0 && g.age===14 && !g.org){
-    // DL_RS_4.141：14 岁强制「宗门择主」——按武魂匹配加权、玩家自主选择势力（可散修；散修保留武魂殿招揽等无宗门机缘）
+  // DL_RS_4.173：势力招揽改为区间触发（12-25岁），不同势力有不同加入年龄门槛
+  // 选散修不锁定，最多触发3次给玩家多次机会；加入势力后锁定
+  if(g.soul.xian>0 && g.age>=12 && g.age<=25 && !g.org && (g._orgRecruitCount||0)<3){
+    // 12-14岁概率较低（早期只有学院/武魂殿招揽），15-20岁高峰，21-25岁递减
+    let recruitP = 0;
+    if(g.age < 15) recruitP = 0.30;
+    else if(g.age < 21) recruitP = 0.50;
+    else recruitP = 0.35;
+    if(hasFate(g,'event')) recruitP += 0.10; // 命格·福缘深厚：事件触发率+10%
+    if(Math.random() < recruitP){
+      g._orgRecruitCount = (g._orgRecruitCount||0) + 1;
+      showEvent(buildOrgSelectEvent());
+      return;
+    }
+  }
+  // 26岁保底：如果一直没加入势力且未触发满3次，强制触发一次
+  if(g.soul.xian>0 && g.age===26 && !g.org && (g._orgRecruitCount||0)<3){
+    g._orgRecruitCount = 3; // 保底后不再触发
     showEvent(buildOrgSelectEvent());
     return;
   }
@@ -3300,7 +3359,7 @@ function showEvent(ev){
     setTimeout(()=>{ if(AUTO._hqPaused){ AUTO._hqPaused=false; AUTO.on=true; $('btnAuto').textContent='停止'; $('btnAuto').classList.add('auto-on'); $('autoHint').textContent='自动挂机中……点击「停止」随时接管手动'; } }, 2000);
   }
   // DL_RS_4.18：事件触发即写入日志（含事件名与品质），使「本局历程」能看出几岁发生了什么事件
-  addLog(`【事件】${ev.name}${ev._special?'':('（'+EV_Q[ev.q]+'品质）')}`, 'sys');
+  addLog(`【事件】${ev.name}${ev._special?'':('（'+EV_Q[ev.q]+'品质）')}`, 'ev-'+ev.q);
   if(!ev._special) recordAtlas('events', ev.name); // DL_RS_4.33：事件图鉴记录（宗门择主等特殊事件不计）
   const box=$('eventBox'); box.innerHTML='';
   // DL_RS_4.111：对决类事件（武斗/死斗/精英赛）在选项前提供战斗战术选择
@@ -3340,6 +3399,8 @@ card.innerHTML = `<div class="en">【${ev.name}】${qtagHtml}${chainTag}</div><d
     }
     // DL_RS_4.101 事件联动：选项需先经历特定机缘（needEv），未满足则置灰禁用
     if(o.needEv && !(g.evFlags && g.evFlags[o.needEv])){ dis=true; needTxt += '（需先经历特定机缘）'; }
+    // DL_RS_4.173：自定义禁用（势力选择中未满足加入条件的势力/分隔标题）
+    if(o._disabled){ dis=true; }
     b.textContent = o.label + needTxt;
     // DL_RS_4.83：百分比奖励预览（势力链终点特色奖励）
     if(o.pctEff){
@@ -3422,8 +3483,10 @@ function resolveEvent(ev, idx){
   }
   const o = ev.opts[idx];
   // DL_RS_4.141：宗门择主事件——直接按所选加入/散修，收尾与正常事件一致
+  // DL_RS_4.173：加入势力后锁定（_orgRecruitCount=3），选散修不锁定允许后续再次触发
   if(ev._orgSelect){
     joinOrg(o._org);
+    if(o._org){ g._orgRecruitCount = 3; } // 已加入势力，不再触发招揽
     advanceChain(ev);
     clampAll();
     endYear();
@@ -3521,7 +3584,8 @@ function resolveEvent(ev, idx){
     return;
   }
   // DL_RS_4.49：武魂殿招揽·加入武魂殿——散修应召真正加入武魂殿势力（org 切换为武魂殿，宗门贡献走武魂殿）
-  if(ev.name==='武魂殿招揽' && idx===0 && !g.org){ g.org='武魂殿'; g.prestige+=20; addLog('<b>武魂殿供奉：</b>你应召加入武魂殿，自此在殿内供奉之位上效力（殿内功勋·声望获取+50%、力量成长+6%）。','good'); }
+  // DL_RS_4.173：加入势力后锁定_orgRecruitCount=3，避免后续重复触发势力招揽
+  if(ev.name==='武魂殿招揽' && idx===0 && !g.org){ g.org='武魂殿'; g._orgRecruitCount=3; g.prestige+=20; addLog('<b>武魂殿供奉：</b>你应召加入武魂殿，自此在殿内供奉之位上效力（殿内功勋·声望获取+50%、力量成长+6%）。','good'); }
   // 固定效果
   if(o.eff){
     // DL_RS_4.119：事件共鸣倍率——lv/youBreak 不缩放（直接加等级/武魂升华机制特殊），其余数值收益按共鸣放大
