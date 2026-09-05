@@ -31,11 +31,17 @@
   .btn.small{padding:5px 10px;font-size:12px}
   .btn.mini{padding:2px 8px;font-size:11px;border-radius:6px}
   .btn:disabled{opacity:.45;cursor:not-allowed}
-  #topStats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  #topStats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;position:sticky;top:0;z-index:50;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line)}
+  #compactStats{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0;padding:8px 12px;background:var(--panel2);border-radius:8px;font-size:12px}
+  #compactStats span{color:var(--dim)}
+  #compactStats b{color:var(--gold);margin-left:3px}
+  #compactStats .cs-power{color:var(--dim)}
+  #compactStats .cs-power b{font-size:14px}
+  #lastChange{margin:6px 0;padding:6px 10px;background:rgba(255,215,0,0.08);border-left:3px solid var(--gold);border-radius:4px;font-size:12.5px;display:none}
   .statpill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px}
   .statpill b{color:var(--gold);margin-left:4px}
   .statpill.warn{border-color:var(--red)} .statpill.warn b{color:var(--red)}
-  .attrgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+  .attrgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px}
   .attrbox{position:relative;display:flex;align-items:baseline;justify-content:flex-start;gap:6px;padding:2px 0}
   .attrbox .nm{font-size:12px;color:var(--dim)}
   .attrbox .vl{color:var(--gold);font-weight:700;font-size:14px}
@@ -341,6 +347,8 @@
       <div>
         <div class="card">
           <h3 id="actionTitle">选择今年如何度过</h3>
+          <div id="compactStats"></div>
+          <div id="lastChange"></div>
           <div id="actionBtns"></div>
           <div id="eventBox"></div>
           <div id="shopPanel" style="display:none;margin-top:10px"></div>
@@ -1983,6 +1991,24 @@ function capLvBySoul(g){
 }
 
 /* ============ HUD ============ */
+/* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
+/* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
+/* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
+/* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
+function renderCompactStats(){
+  const g=G, a=g.a;
+  const cs = document.getElementById("compactStats");
+  if(!cs) return;
+  cs.innerHTML =
+    `<span>力量<b>${Math.floor(a.力量)}</b></span>
+     <span>敏捷<b>${Math.floor(a.敏捷)}</b></span>
+     <span>体质<b>${Math.floor(a.体质)}</b></span>
+     <span>精神<b>${Math.floor(a.精神力)}</b></span>
+     <span>悟性<b>${Math.floor(a.悟性)}</b></span>
+     <span>家境<b>${Math.floor(a.家境)}</b></span>
+     <span>天命<b>${Math.floor(a.天命)}</b></span>
+     <span class="cs-power">战力<b>${power()}</b></span>`;
+}
 function renderGame(){
   const g=G, a=g.a;
   const tierName = realmName(g.lv);
@@ -2008,6 +2034,8 @@ function renderGame(){
     ? `<span style="color:var(--gold)">轮回加护：${lhBuffs.join(' · ')}</span>`
     : '<span class="muted">无轮回加护——第一世赤手空拳，于轮回殿加点可强化下一世</span>';
   $('actionTitle').textContent = `第 ${g.age} 岁 · 选择今年如何度过`;
+  // 紧凑属性条（动作按钮区域内，手机上无需上划即可查看关键属性）
+  renderCompactStats();
   // 属性面板
   const sa=$('sideAttrs'); sa.innerHTML='';
   sa.insertAdjacentHTML('beforeend', bar('力量', a.力量));
@@ -2017,7 +2045,7 @@ function renderGame(){
   sa.insertAdjacentHTML('beforeend', bar('悟性', a.悟性));
   sa.insertAdjacentHTML('beforeend', bar('家境', a.家境));
   sa.insertAdjacentHTML('beforeend', bar('天命', a.天命));
-  sa.insertAdjacentHTML('beforeend', '<div style="grid-column:1/-1;margin-top:6px;display:flex;align-items:baseline;gap:8px">'+bar('战力', power())+'<button class="btn mini" onclick="togglePowerBrk()">构成</button></div>');
+  sa.insertAdjacentHTML('beforeend', '<div style="grid-column:1/-1;margin-top:8px;padding-top:6px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:10px"><span style="font-size:14px;color:var(--dim)">战力</span><span style="font-size:20px;font-weight:800;color:var(--gold)">'+power()+'</span><button class="btn mini" onclick="togglePowerBrk()">构成</button></div>');
   sa.insertAdjacentHTML('beforeend', '<div id="powerBrk" style="grid-column:1/-1;margin-top:2px"></div>');
   sa.insertAdjacentHTML('beforeend', '<div class="muted" style="grid-column:1/-1;font-size:11px;margin-top:2px">四维普通人为 5 · 战力以普通人 5 为基准</div>');
   // 武魂魂环
@@ -2515,6 +2543,7 @@ function doAction(kind){
       openHuntUI(); return;
     }
   }
+  renderCompactStats(); // 动作执行后立即更新紧凑属性条（手机上无需上划即可查看属性变化）
   triggerEvent();
 }
 // DL_RS_4.102：悟性成长难度——越接近上限越难涨（55 后减半、80 后仅 1/5），防止悟性人人满值、凸显图鉴/轮回殿加成价值
@@ -2759,6 +2788,7 @@ function openHuntUI(){
   const idx = g.rings.length;
   const gate = CFG.ring.gates[idx];
   $('actionTitle').textContent = `第 ${g.age} 岁 · 猎取${CFG.ring.skillName[idx]}（${gate}级关口）${g.dual?' · 双生双环':''}`;
+  renderCompactStats(); // 猎魂界面也更新紧凑属性条
   const btns=$('actionBtns'); btns.innerHTML='';
   const tiers = [
     {k:'稳', d:`猎杀低年份${CFG.ring.yearDesc[idx]}，十拿九稳，魂环平平。`},
@@ -5160,3 +5190,4 @@ renderStart();
 
 
 <doubao-ai-csui id="e7d666e0e017423b930b38bb7ef81b76" data-host-id="b30afdd0-dc04-4364-a5a5-2c9fbcb024eb" data-doubao-translate-traverse-mark="1"></doubao-ai-csui><div id="doubao-ai-translate-image-assistantb30afdd0-dc04-4364-a5a5-2c9fbcb024eb" data-collection-img-host-id="b30afdd0-dc04-4364-a5a5-2c9fbcb024eb" data-doubao-translate-traverse-mark="1"></div><div data-doubao-translate-traverse-mark="1" style="width: 0px; height: 0px; position: absolute; z-index: 200000;"></div></body></html>
+
