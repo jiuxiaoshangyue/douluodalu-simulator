@@ -2147,6 +2147,14 @@ function awakenSoul(g){
       recordAtlas('souls', d.name); // DL_RS_4.33：双生副武魂入图鉴
   }
   g.dual = dual;
+  // DL_RS_4.190：武魂品质影响悟性上限——废武魂/普通武魂悟性领悟受限，高品质武魂悟性上限更高
+  const WU_LIMIT = {fei:50, pu:65, you:80, ding:90, super:95, shen:100};
+  const _wuLimit = WU_LIMIT[quality] || 100;
+  if(g.a.悟性 > _wuLimit){
+    const _oldWu = g.a.悟性;
+    g.a.悟性 = _wuLimit;
+    addLog(`武魂品质限制悟性领悟，悟性上限调整为 ${_wuLimit}（原 ${Math.round(_oldWu)}）。`, 'note');
+  }
   return {soul:g.soul, dual};
 }
 function renderAwaken(){
@@ -2712,12 +2720,12 @@ function doAction(kind){
   if(g.soul.xian === 0){
     if(kind==='苦修'){
       addLog('你试图引气入体，却连一丝魂力都感应不到——先天魂力为 0，注定与魂师无缘。','note');
-      a.体质+=0.05; a.悟性+=0.05;
+      a.体质+=0.05; a.悟性+=gainWuSmall(0.05);
     } else if(kind==='历练'){
       a.体质+=0.3; a.力量+=0.2;
       addLog('<b>劳作</b> 你如常人般耕猎劳作，体魄略有增强，魂力却纹丝不动。','sys');
     } else if(kind==='交游'){
-      a.悟性+=0.1; a.家境+=0.3; g.prestige+=2;
+      a.悟性+=gainWuSmall(0.1); a.家境+=0.3; g.prestige+=2;
       addLog('<b>交游</b> 你广结善缘，日子平淡却充实。','sys');
     } else if(kind==='经营'){
       const earn = Math.floor(80 + a.家境*1.2);
@@ -2763,14 +2771,14 @@ function doAction(kind){
   capLvBySoul(g); // DL_RS_4.140：七宝琉璃塔 79 级封顶
 
   if(kind==='苦修'){
-    a.体质+=0.1; a.悟性+=0.05; trendGrow(0.4);
+    a.体质+=0.1; a.悟性+=gainWuSmall(0.05); trendGrow(0.4);
     const cost = Math.floor(15 + a.家境*0.2);
     g.money = Math.max(0, g.money - cost);
     if(Math.random()<0.06){
       // DL_RS_4.167：走火入魔等级倒退随等级衰减——前期倒退 1 级（很快补回），高等级最低 0.2 级（避免后期一次倒退需数年苦修弥补）
       const backLv = Math.max(0.2, 1.0 - Math.max(0, g.lv - 10) * 0.012);
-      addLog(`强行冲关，走火入魔！魂力倒退 ${rr(backLv)} 级，经脉受损。`, 'bad');
-      a.体质-=5; a.悟性-=2; g.lv = Math.max(0, g.lv - backLv);
+      addLog(`强行冲关，走火入魔！魂力倒退 ${rr(backLv)} 级，经脉受损，心神受创。`, 'bad');
+      a.体质-=5; a.悟性-=3; g.lv = Math.max(0, g.lv - backLv);
       if(Math.random()<0.05){ die('走火入魔，经脉尽断'); return; }
     }
   }
@@ -2804,7 +2812,8 @@ function doAction(kind){
   }
   if(kind==='交游'){
     // DL_RS_4.12：交游悟性成长上调（0.4→0.5），并增设「论道顿悟」——走人脉路线的魂师悟性成长不输苦修
-    a.悟性+=0.1; a.家境+=0.3; trendGrow(0.3);
+    // DL_RS_4.189：基础行动悟性增加也受衰减
+    a.悟性+=gainWuSmall(0.1); a.家境+=0.3; trendGrow(0.3);
     const r=Math.random();
     // DL_RS_4.50（通查修复）：先天 0 凡人不入宗门（原著凡人无缘宗门，收徒/开宗事件亦已按品质与魂力前置）
     if(!g.master && g.age>=12 && r<0.25){ gainMaster(); }
@@ -2848,6 +2857,15 @@ function gainWu(n){
   else if(w >= 55) m = 0.4;
   else if(w >= 40) m = 0.65;
   return Math.max(1, Math.ceil(Math.ceil(n * 0.25 * m) * orgWuMult()));
+}
+// DL_RS_4.189：基础行动悟性增加也受衰减（小数版本，用于苦修/交游的固定悟性增长）
+function gainWuSmall(n){
+  const w = (typeof G!=='undefined' && G && G.a) ? G.a.悟性 : 0;
+  let m = 1;
+  if(w >= 80) m = 0.1;
+  else if(w >= 55) m = 0.4;
+  else if(w >= 40) m = 0.65;
+  return n * m;
 }
 function clampAll(){
   FIGHT_ATTRS.forEach(k=>{ G.a[k]=Math.max(0, G.a[k]); }); // 战斗四维无上限
@@ -3318,10 +3336,13 @@ function resolveHunt(choice, idx){
     const _smR = stanceBonus(); // DL_RS_4.111：受伤按姿态调整
     const dmg = Math.max(2, Math.round(ri(12,22) * (1+_smR.hurt)));
     a.体质 -= dmg;
-    addLog(`<b>猎魂失败！</b>${CFG.ring.yearDesc[idx]}濒死反扑，你身受重伤（体质-${dmg}）。`,'bad');
+    // DL_RS_4.191：猎魂失败增加悟性惩罚——濒死反扑导致心神受创，领悟能力短暂下降
+    const huntWuLoss = ri(1,3);
+    a.悟性 = Math.max(1, a.悟性 - huntWuLoss);
+    addLog(`<b>猎魂失败！</b>${CFG.ring.yearDesc[idx]}濒死反扑，你身受重伤（体质-${dmg}、悟性-${huntWuLoss}）。`,'bad');
     const deathCh = huntDeathP(idx, choice);
     if(Math.random() < deathCh){ die(`死于${CFG.ring.yearDesc[idx]}的反噬`); return; }
-    addLog('捡回一条命。魂力受损，来年再战。','note');
+    addLog('捡回一条命。魂力与心神俱损，来年再战。','note');
     a.体质 = Math.max(a.体质, 5); // 猎魂重伤后不跌破普通人基准
   }
   clampAll();
@@ -3597,6 +3618,9 @@ function resolveShenkao(){
     g.shenkaoN = Math.max(0, g.shenkaoN - 1); // 本次未通过，考数减回（保持"已通过考数"，下次从本考继续）
     a.体质 -= dmg;
     ['力量','敏捷','体质','精神力'].forEach(k=>{ if(Math.random()<0.6) a[k] = Math.max(0, a[k] - ri(3,6)); });
+    // DL_RS_4.191：神考失败增加悟性惩罚——神罚加身，心神受创，领悟能力下降
+    const wuLoss = ri(3,6);
+    a.悟性 = Math.max(1, a.悟性 - wuLoss);
     // 削减寿元：90 级以下以人类寿命计，90 级以上以境界寿元计。
     // DL_RS_4.62：削减经 _lifeCut 持久累计（不重置 _tier），档位重算/缓存均不覆盖——
     // 彻底封死「神考失败削减寿命 → 跨档重算又弹回档位值」的漏洞
@@ -3610,7 +3634,7 @@ function resolveShenkao(){
     if((lifeBaseNow - g._lifeCut) < floorLife) g._lifeCut = Math.max(0, lifeBaseNow - floorLife);
     g.lifeCap = Math.max(1, lifeBaseNow - g._lifeCut);
     g._shenkaoCd = g.age + ri(5,8);
-    addLog(`神考第 ${nFail} 考 · <b>失败</b>！神罚加身，魂力受创（体质-${dmg}、四维受创、<b>寿元削减 ${lifeCut} 年</b>）——已通过的考次与奖励保留，休整 ${g._shenkaoCd - g.age} 年后再战。属性越超出要求，通过率越高。`,'bad');
+    addLog(`神考第 ${nFail} 考 · <b>失败</b>！神罚加身，魂力受创（体质-${dmg}、四维受创、悟性-${wuLoss}、<b>寿元削减 ${lifeCut} 年</b>）——已通过的考次与奖励保留，休整 ${g._shenkaoCd - g.age} 年后再战。属性越超出要求，通过率越高。`,'bad');
   }
   clampAll();
   triggerEvent();
@@ -3693,10 +3717,13 @@ function trySelfGod(){
     addLog(`<b>自创神位！</b>你以己身之道凝聚神格，天地为证——自创神位「${title}」，超越一切既定神位，万古未有！`,'good');
     ascend(); return true;
   }
-  addLog('<b>自创神位失败！</b>神格崩散，天地法则反噬加身，你道基尽毁……','bad');
+  addLog('<b>自创神位失败！</b>神格崩散，天地法则反噬加身，你道基尽毁、心神俱裂……','bad');
   a.体质 = Math.max(0, a.体质-40);
+  // DL_RS_4.191：自创神位失败增加悟性惩罚——道基尽毁，领悟能力永久受损
+  const _selfWuLoss = ri(8,15);
+  a.悟性 = Math.max(1, a.悟性 - _selfWuLoss);
   if(Math.random() < 0.4){ die('自创神位失败，身死道消'); return true; }
-  addLog('你捡回一命，然此生已无再凝神格之望。','note');
+  addLog(`你捡回一命，然此生已无再凝神格之望（悟性-${_selfWuLoss}，道基受损）。`,'note');
   clampAll();
   // DL_RS_4.93：失败后立即禁用残留的自创神位按钮——否则 autoAct 反复点击此 return false 的按钮死循环卡死
   const _ab = $('actionBtns');
