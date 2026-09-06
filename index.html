@@ -41,10 +41,12 @@
   .statpill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px}
   .statpill b{color:var(--gold);margin-left:4px}
   .statpill.warn{border-color:var(--red)} .statpill.warn b{color:var(--red)}
-  .attrgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px}
-  .attrbox{position:relative;display:flex;align-items:baseline;justify-content:flex-start;gap:6px;padding:2px 0}
-  .attrbox .nm{font-size:12px;color:var(--dim)}
-  .attrbox .vl{color:var(--gold);font-weight:700;font-size:14px}
+  /* DL_RS_4.188：属性网格固定4列，总值大号 + 加成小字绿色，视觉主次分明 */
+  .attrgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 16px}
+  .attrbox{position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;padding:2px 0;flex-wrap:nowrap;min-width:0}
+  .attrbox .nm{font-size:12px;color:var(--dim);white-space:nowrap;flex-shrink:0}
+  .attrbox .vl{color:var(--gold);font-weight:700;font-size:16px;white-space:nowrap}
+  .attrbox .bonus{color:#66ff99;font-weight:600;font-size:11px;white-space:nowrap;align-self:flex-end;margin-bottom:1px}
   .attrbox.psi .vl{color:#a06fe0}
   .attrbox.war .vl{color:#e0763a}
   .soulname{font-size:18px;font-weight:800}
@@ -88,11 +90,12 @@
   .lhbtn:disabled{opacity:.35;cursor:not-allowed}
   .lhval{min-width:52px;text-align:center;font-weight:700;color:var(--gold);font-size:12px}
   /* 命格池（DL_RS_4.69）：轮回殿展示全部命格效果，便于玩家查看 */
-  .fate-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
-  .fate-item{display:flex;flex-direction:column;gap:1px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:11px;max-width:220px}
+  /* DL_RS_4.186：改用grid布局，固定3列，所有item宽度一致，避免名称长短不一导致排版混乱 */
+  .fate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}
+  .fate-item{display:flex;flex-direction:column;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:11px;box-sizing:border-box;min-height:52px}
   .fate-item.on{border-color:var(--gold2);background:var(--panel2)}
-  .fate-nm{font-weight:700;color:var(--gold);font-size:11.5px}
-  .fate-ds{color:var(--dim);font-size:10.5px;line-height:1.5}
+  .fate-nm{font-weight:700;color:var(--gold);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fate-ds{color:var(--dim);font-size:10.5px;line-height:1.5;flex:1}
   /* 自动挂机 */
   #autoBar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
   .btn.auto-on{background:var(--green);border-color:var(--green);color:#0d1424;font-weight:700}
@@ -1528,9 +1531,11 @@ function validateSaveData(data){
   }).filter(s=>s !== null);
   return data;
 }
-function bar(attr, val, cls){
+function bar(attr, val, cls, bonus){
   // 属性仅显示名称+数值（无横条）；战斗四维不设上限，不做百分比条
-  return `<div class="attrbox ${cls||''}"><div class="nm">${attr}</div><div class="vl">${typeof val === 'string' ? val : Math.floor(val)}</div></div>`;
+  // DL_RS_4.188：支持额外加成小字显示（总值大号 + 加成小字绿色）
+  const _bonusHtml = (bonus !== undefined && bonus !== null && bonus > 0) ? `<div class="bonus">+${bonus}</div>` : '';
+  return `<div class="attrbox ${cls||''}"><div class="nm">${attr}</div><div class="vl">${typeof val === 'string' ? val : Math.floor(val)}</div>${_bonusHtml}</div>`;
 }
 function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -1992,7 +1997,7 @@ function renderGift(){
 function renderRoll(){
   const ag = $('rollAttrs'); ag.innerHTML='';
   const gdEl = $('rollGender'); if(gdEl) gdEl.innerHTML = `<span style="margin-right:12px">姓名 <b style="font-size:15px;color:var(--gold2)">${G.name||'无名'}</b></span><span style="margin-right:12px">性别 <b style="font-size:15px;color:var(--gold2)">${G.gender||'男'}</b></span><span>性格 <b style="font-size:15px;color:var(--gold2)">${G.personality||''}</b></span>`;
-  ATTRS.forEach(k=>{ const _base = G._attrBase ? G._attrBase[k] : null; const _bonus = G._attrBonus ? G._attrBonus[k] : null; const _val = Math.round(G.a[k]*10)/10; const _disp = (_base !== null && _bonus !== null && _bonus > 0) ? _val + '（' + Math.round(_base*10)/10 + '+' + _bonus + '）' : _val; ag.insertAdjacentHTML('beforeend', bar(k, _disp, k==='精神力'?'psi':'') ); });
+  ATTRS.forEach(k=>{ const _base = G._attrBase ? G._attrBase[k] : null; const _bonus = G._attrBonus ? G._attrBonus[k] : null; const _val = Math.round(G.a[k]*10)/10; const _hasBonus = (_base !== null && _bonus !== null && _bonus > 0); ag.insertAdjacentHTML('beforeend', bar(k, _val, k==='精神力'?'psi':'', _hasBonus ? _bonus : null) ); });
   const fam = G.a.家境;
   let bg='山村贫家', tip='家中温饱难继，修炼全凭天资。';
   if(fam<20){bg='山村贫家'; tip='饭都未必吃饱，觉醒个像样武魂已是奢望。'}
