@@ -238,6 +238,57 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.82; }
 }
+
+/* 属性变化高亮动画 */
+.attr-highlight {
+  animation: attrPulse 1.5s ease-out;
+  display: inline-block;
+}
+@keyframes attrPulse {
+  0% { background: rgba(255,215,0,0.6); transform: scale(1.15); border-radius: 4px; }
+  50% { background: rgba(255,215,0,0.3); }
+  100% { background: transparent; transform: scale(1); }
+}
+.attr-up { color: #4ade80 !important; }
+.attr-down { color: #f87171 !important; }
+
+
+/* 历程筛选与搜索 */
+.log-filter-bar {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;
+}
+.log-filter-btn {
+  padding: 4px 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px;
+  background: transparent; color: var(--text); cursor: pointer; transition: all 0.2s;
+}
+.log-filter-btn:hover { background: rgba(255,255,255,0.1); }
+.log-filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.log-filter-btn.q-common.active { background: #d9e2f5; color: #333; }
+.log-filter-btn.q-uncommon.active { background: #e6c940; color: #333; }
+.log-filter-btn.q-rare.active { background: #c39bd3; color: #333; }
+.log-filter-btn.q-epic.active { background: #a8b0c0; color: #333; }
+.log-filter-btn.q-legend.active { background: #ff6b6b; color: #fff; }
+.log-filter-btn.q-mythic.active { background: #ffd700; color: #333; }
+.log-search-input {
+  flex: 1; min-width: 120px; padding: 4px 8px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 4px; background: rgba(0,0,0,0.2); color: var(--text);
+}
+.log-search-input:focus { outline: none; border-color: var(--accent); }
+.log-filter-count { font-size: 11px; color: var(--dim); margin-left: auto; }
+/* DL_RS_4.185：日志列表独立滚动，顶部筛选栏固定不跟随滚动 */
+#logListContainer {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#logListContainer::-webkit-scrollbar { width: 6px; }
+#logListContainer::-webkit-scrollbar-track { background: transparent; }
+#logListContainer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#logListContainer::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
 </style>
 </head>
 <body>
@@ -369,7 +420,7 @@
       <div style="width:100%;max-width:560px">
         <div class="end-box" id="endEval"></div>
         <div class="end-box" id="endSummary"></div>
-        <div class="end-box" id="endLife" style="display:none;max-height:320px;overflow:auto;margin-top:14px"></div>
+        <div class="end-box" id="endLife" style="display:none;margin-top:14px"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
         <button class="btn primary" id="btnAgain">轮回重开</button>
@@ -493,8 +544,23 @@ function absorbBone(ry){
 /* equipBone：装备一件魂骨（DL_RS_4.41 抽离统一入口——猎魂掉落与事件机缘共用）
    部位优先未装备槽位，六部位集齐后随机替换；同部位新骨自动扣减旧骨加成；
    十万年带魂骨技。返回装备信息供日志/UI 使用。 */
-function equipBone(grade, fixSlot){
+function equipBone(grade, fixSlot, skipCheck){
   const g=G, a=g.a;
+  // DL_RS_4.168：魂骨吸收限制（原著设定）——先天魂力0级无法引气入体，不能吸收魂骨；
+  // 千年魂骨需大魂师（20级/1环）、万年需魂宗（40级/4环）、十万年需魂斗罗（80级/8环）
+  // DL_RS_4.177：skipCheck=true时跳过魂力等级检查（用于命格天生魂骨等场景，魂骨出生即有）
+  if(!skipCheck){
+    const reqLv = grade==='十万年' ? 80 : grade==='万年' ? 40 : grade==='千年' ? 20 : 10;
+    const reqRing = grade==='十万年' ? 8 : grade==='万年' ? 4 : grade==='千年' ? 1 : 0;
+    if(g.soul && g.soul.xian===0){
+      addLog('<b>魂骨无缘：</b>你先天魂力为0，无法引气入体，纵然有魂骨在手也无法融合，只能眼睁睁看着它失去光泽。','bad');
+      return null;
+    }
+    if(g.lv < reqLv || (g.rings||[]).length < reqRing){
+      addLog('<b>魂力不足：</b>你目前的魂力境界尚不足以融合'+grade+'魂骨，强行吸收只会经脉寸断，只能忍痛放弃。','bad');
+      return null;
+    }
+  }
   const slots = g.bones||[];
   const occupied = slots.map(b=>b.slot);
   let slot;
@@ -521,8 +587,10 @@ function equipBone(grade, fixSlot){
   Object.keys(attrAdd).forEach(k=>{ a[k] += attrAdd[k]; });
   // 十万年魂骨带魂骨技
   let boneSkill = '';
+  if(!g.achievements) g.achievements = []; // DL_RS_4.178：空值检查，防止applyFateBase中调用时achievements未初始化
   if(grade==='十万年'){ boneSkill = '魂骨技·' + pick(['威压','护体','裂空','吞天','镇魂','破军']); if(g.achievements.indexOf('十万年魂骨')<0) g.achievements.push('十万年魂骨'); }
   else if(g.achievements.indexOf('魂骨')<0) g.achievements.push('魂骨');
+  if(!g.bones) g.bones = []; // DL_RS_4.178：空值检查
   g.bones = slots; g.bones.push({slot, grade, main, attrAdd, skill:boneSkill});
   return {slot, grade, main, mVal, sub, sVal, skill:boneSkill};
 }
@@ -834,9 +902,10 @@ function viewArchive(index){
   html += '</div>';
   if(s.achievements && s.achievements.length) html += '<div style="margin-bottom:14px;font-size:12.5px"><b>成就：</b>' + s.achievements.join('、') + '</div>';
   if(s.attrs) { html += '<div style="margin-bottom:14px;font-size:12.5px"><b>最终属性：</b>'; for(const k in s.attrs) html += k + s.attrs[k] + ' '; html += '</div>'; }
-  html += '<h4 style="margin:14px 0 8px">本局历程（' + (s.log||[]).length + '条）</h4>';
+  const _logList = (s.log||[]).slice(0, 1000); // DL_RS_4.178：深度防御，最多显示1000条日志
+  html += '<h4 style="margin:14px 0 8px">本局历程（' + (s.log||[]).length + '条' + ((s.log||[]).length > 1000 ? '，仅显示前1000条' : '') + '）</h4>';
   html += '<div style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12.5px;line-height:1.8">';
-  (s.log||[]).forEach(l=>{ html += '<div class="entry ' + (l.cls||'') + '">' + (l.text||'') + '</div>'; });
+  _logList.forEach(l=>{ html += '<div class="entry ' + escapeHtml(l.cls||'') + '">' + sanitizeLogHtml(l.text||'') + '</div>'; }); // DL_RS_4.178：深度防御，日志二次过滤
   html += '</div></div>';
   modal.innerHTML = html;
   document.body.appendChild(modal);
@@ -870,7 +939,7 @@ function exportArchive(index){
     else if(cls.indexOf('mythic')>=0) color = '#ffd700';
     else if(cls.indexOf('epic')>=0) color = '#c77dff';
     else if(cls.indexOf('rare')>=0) color = '#66ccff';
-    logHtml += '<div style="padding:3px 0;color:'+color+'">'+(l.text||'')+'</div>';
+    logHtml += '<div style="padding:3px 0;color:'+color+'">'+sanitizeLogHtml(l.text||'')+'</div>'; // DL_RS_4.178：导出日志安全过滤
   });
   if(!logHtml) logHtml = '<div class="muted">无历程记录</div>';
 
@@ -880,7 +949,8 @@ function exportArchive(index){
     'h2{color:#66ccff;border-left:4px solid #66ccff;padding-left:10px;margin-top:24px}'+
     '.info{background:#16213e;padding:12px;border-radius:8px;margin:10px 0}'+
     '.muted{color:#888}'+
-    '.ach{color:#ffd700}</style></head><body>'+
+    '.ach{color:#ffd700}'+
+    '</style></head><body>'+
     '<h1>'+(s.name||'无名')+' 的一生</h1>'+
     '<div class="info"><b>'+(s.endTitle||'')+'</b> · 评分 '+s.score+' · 战力 '+s.power+' · '+s.lv+'级 · 享年 '+s.age+'岁</div>'+
     '<h2>基本信息</h2><div class="info">'+
@@ -923,22 +993,24 @@ function importSave(input){
   const reader = new FileReader();
   reader.onload = function(e){
     try{
-      const data = JSON.parse(e.target.result);
-      if(!data.meta || !data.ruleset){ throw new Error('无效的存档文件格式'); }
+      const raw = JSON.parse(e.target.result);
+      // DL_RS_4.178：存档完整性验证 + 防原型链污染
+      const data = validateSaveData(safeClone(raw));
       if(data.ruleset !== RULESET){ throw new Error('存档版本不匹配（当前：' + RULESET + '，存档：' + data.ruleset + '）'); }
       // 确认导入
       if(!confirm('确定导入存档吗？这将覆盖当前所有跨世进度（轮回点/加点/图鉴/成就/排行榜），且不可撤销。')){ input.value=''; return; }
       META = data.meta;
-      // 确保必要字段存在
+      // 确保必要字段存在（validateSaveData已校验，这里兜底）
       META.lundian = META.lundian || 0;
       META.lunhui = META.lunhui || {};
       META.fate = META.fate || 0;
       META.atlas = META.atlas || {souls:{}, events:{}, endings:{}};
       META.records = META.records || {};
       META.board = META.board || [];
+      META.historySaves = META.historySaves || [];
       saveMeta();
       // 刷新页面显示
-      if(typeof renderLundian === 'function') renderLundian();
+      if(typeof renderLunhui === 'function') renderLunhui();
       if(typeof renderAtlasSumm === 'function') renderAtlasSumm();
       if(typeof renderBoard === 'function') renderBoard();
       const msg = document.getElementById('saveMsg');
@@ -954,6 +1026,8 @@ function importSave(input){
 /* ============ 图鉴收集（DL_RS_4.33）：跨局记录武魂/事件/结局，收集驱动重玩 ============ */
 function recordAtlas(cat, name){
   if(!name) return;
+  // DL_RS_4.178：防原型链污染——过滤危险键名
+  if(name === '__proto__' || name === 'constructor' || name === 'prototype') return;
   META.atlas = META.atlas || {souls:{}, events:{}, endings:{}};
   if(!META.atlas[cat]) META.atlas[cat] = {};
   if(!META.atlas[cat][name]){ META.atlas[cat][name] = true; saveMeta(); } // 新条目自动持久化
@@ -1185,7 +1259,7 @@ function lunhuiBuffText(){
    命格是局内一次性加成（仅本局），不永久膨胀数值——既消化溢出轮回点，又保持
    「初始艰难、轮回渐易」的节奏：命格越多，每局开局起点越高的可能性越大。 */
 const FATE_POOL = [
-  {name:'天生灵骨', desc:'出生自带一块千年魂骨，体质+10', attr:{体质:10}},
+  {name:'天生灵骨', desc:'出生自带一块千年魂骨，体质+10', attr:{体质:10}, bone:'千年'},
   {name:'天骄血脉', desc:'先天魂力+2：修炼速度与觉醒起点同步提升（先天 0 者无效）', xian:2},
   {name:'神眷之子', desc:'天命+15', attr:{天命:15}},
   {name:'世家底蕴', desc:'家境保底 60', famFloor:60},
@@ -1228,8 +1302,51 @@ function applyFateBase(g){
       else g.a[k]=Math.max(0, g.a[k]+f.attr[k]);
     });
     if(f.famFloor) g.a.家境 = Math.max(g.a.家境, f.famFloor);
+    // DL_RS_4.177：命格天生魂骨——出生即自带魂骨，跳过魂力等级检查（此时角色尚未武魂觉醒，魂力为0）
+    if(f.bone){
+      const _oldG = G; // 保存当前G引用
+      G = g; // 临时切换G为当前角色，确保equipBone内部引用正确
+      const _info = equipBone(f.bone, null, true);
+      G = _oldG; // 恢复G引用
+      if(_info && g.achievements){
+        if(f.bone==='十万年' && g.achievements.indexOf('十万年魂骨')<0) g.achievements.push('十万年魂骨');
+        else if(g.achievements.indexOf('魂骨')<0) g.achievements.push('魂骨');
+      }
+    }
   });
 }
+/* DL_RS_4.180：长按连续加点——按住加号/减号按钮自动连续加点，松开停止 */
+let _lhPressTimer = null;
+let _lhPressBtn = null;
+function _lhStartPress(btn, d, k, max){
+  if(btn.disabled) return;
+  _lhPressBtn = btn;
+  const doPoint = ()=>{
+    const v = lunhuiVal(k);
+    if(d>0){
+      if(META.lundian>0 && v<max){ META.lundian--; META.lunhui[k]=v+1; saveMeta(); renderLunhui(); }
+      else { _lhStopPress(); return; }
+    } else {
+      if(v>0){ META.lundian++; META.lunhui[k]=v-1; saveMeta(); renderLunhui(); }
+      else { _lhStopPress(); return; }
+    }
+  };
+  // 第一次立即执行
+  doPoint();
+  // 300ms后开始连续加点，每80ms一次
+  _lhPressTimer = setTimeout(()=>{
+    _lhPressTimer = setInterval(doPoint, 80);
+  }, 300);
+}
+function _lhStopPress(){
+  if(_lhPressTimer){ clearTimeout(_lhPressTimer); clearInterval(_lhPressTimer); _lhPressTimer = null; }
+  _lhPressBtn = null;
+}
+// 全局监听鼠标/触摸松开，停止连续加点
+document.addEventListener('mouseup', _lhStopPress);
+document.addEventListener('touchend', _lhStopPress);
+document.addEventListener('touchcancel', _lhStopPress);
+
 function renderLunhui(){
   $('lunDian').textContent = META.lundian;
   // DL_RS_4.118：轮回殿不再重复展示收集称号（图鉴页已展示），避免信息冗余
@@ -1243,12 +1360,14 @@ function renderLunhui(){
         <span class="lhval">${v}/${d.max}</span>
         <button class="lhbtn" data-k="${d.k}" data-d="1" ${v>=d.max||META.lundian<=0?'disabled':''}>＋</button>
       </div>`;
-    row.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{
+    row.querySelectorAll('button').forEach(b=>{
       const delta = parseInt(b.dataset.d);
-      if(delta>0 && META.lundian>0 && v<d.max){ META.lundian--; META.lunhui[d.k]=v+1; }
-      else if(delta<0 && v>0){ META.lundian++; META.lunhui[d.k]=v-1; }
-      saveMeta(); renderLunhui();
-    };});
+      // DL_RS_4.180：长按连续加点
+      b.onmousedown = (e)=>{ e.preventDefault(); _lhStartPress(b, delta, d.k, d.max); };
+      b.ontouchstart = (e)=>{ e.preventDefault(); _lhStartPress(b, delta, d.k, d.max); };
+      // 防止click事件重复触发（mousedown已经处理了第一次点击）
+      b.onclick = (e)=>{ e.preventDefault(); };
+    });
     box.appendChild(row);
   });
   // 命格祭炼（DL_RS_4.29/4.31）：全部加点项满后激活，每 FATE_COST 点轮回点兑换 1 命格；
@@ -1286,6 +1405,129 @@ const ri  = (a,b)=> Math.floor(rnd(a,b+1));
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
 function rr(v){ return Math.round(v*100)/100; }
+/* ============ 安全工具函数（DL_RS_4.178：防原型链污染/存储型XSS/存档完整性验证） ============ */
+// 安全深拷贝：过滤 __proto__/constructor/prototype 键，防止原型链污染
+function safeClone(obj){
+  if(obj === null || typeof obj !== 'object') return obj;
+  if(Array.isArray(obj)) return obj.map(safeClone);
+  const out = {};
+  for(const k in obj){
+    if(k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    if(!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+    out[k] = safeClone(obj[k]);
+  }
+  return out;
+}
+// HTML实体转义：防止存储型XSS
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
+}
+// 日志HTML安全过滤：保留游戏内部生成的安全标签（b/span/div等），移除危险内容
+function sanitizeLogHtml(str){
+  if(str === null || str === undefined) return '';
+  let s = String(str);
+  // 移除script标签及内容
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, '');
+  s = s.replace(/<script[^>]*>/gi, '');
+  // 移除on*事件属性
+  s = s.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // 移除javascript:协议
+  s = s.replace(/javascript\s*:/gi, '');
+  // 移除vbscript:协议
+  s = s.replace(/vbscript\s*:/gi, '');
+  // 移除data:协议（除了图片）
+  s = s.replace(/data\s*:\s*(?!image\/)/gi, '');
+  // 移除iframe/object/embed/form/input等危险标签
+  s = s.replace(/<\/?(iframe|object|embed|form|input|button|textarea|select|option|link|meta|style|base)[^>]*>/gi, '');
+  return s;
+}
+// 安全数值：限制数值范围，防止Infinity/NaN/超大值
+function safeNum(v, min, max, def){
+  const n = Number(v);
+  if(!isFinite(n) || isNaN(n)) return def;
+  return Math.max(min, Math.min(max, n));
+}
+// 存档数据完整性验证：白名单字段 + 类型/范围校验
+function validateSaveData(data){
+  if(!data || typeof data !== 'object') throw new Error('存档数据格式无效');
+  if(!data.meta || typeof data.meta !== 'object') throw new Error('存档缺少 meta 字段');
+  if(!data.ruleset || typeof data.ruleset !== 'string') throw new Error('存档缺少 ruleset 字段');
+  // 校验 meta 中的关键字段
+  const m = data.meta;
+  m.lundian = safeNum(m.lundian, 0, 99999, 0);
+  m.fate = safeNum(m.fate, 0, 99999, 0);
+  if(typeof m.lunhui !== 'object' || m.lunhui === null) m.lunhui = {};
+  if(typeof m.atlas !== 'object' || m.atlas === null) m.atlas = {souls:{}, events:{}, endings:{}};
+  if(typeof m.records !== 'object' || m.records === null) m.records = {};
+  if(!Array.isArray(m.board)) m.board = [];
+  if(!Array.isArray(m.historySaves)) m.historySaves = [];
+  // 限制历史存档数量（最多50条），防止资源耗尽
+  if(m.historySaves.length > 50) m.historySaves = m.historySaves.slice(0, 50);
+  // 校验每条历史存档
+  m.historySaves = m.historySaves.map(s=>{
+    if(typeof s !== 'object' || s === null) return null;
+    s.name = escapeHtml(s.name || '无名').substring(0, 50);
+    s.lv = safeNum(s.lv, 0, 999, 0);
+    s.age = safeNum(s.age, 0, 9999, 0);
+    s.score = safeNum(s.score, 0, 999999, 0);
+    s.power = safeNum(s.power, 0, 99999999, 0);
+    s.saveTime = escapeHtml(s.saveTime || '').substring(0, 50);
+    s.endTitle = escapeHtml(s.endTitle || '').substring(0, 100);
+    s.deathCause = escapeHtml(s.deathCause || '').substring(0, 200);
+    s.godTitle = escapeHtml(s.godTitle || '').substring(0, 50);
+    s.org = escapeHtml(s.org || '').substring(0, 50);
+    s.spouse = escapeHtml(s.spouse || '').substring(0, 50);
+    s.children = safeNum(s.children, 0, 999, 0);
+    if(typeof s.soul === 'object' && s.soul !== null){
+      s.soul.name = escapeHtml(s.soul.name || '').substring(0, 50);
+      s.soul.quality = escapeHtml(s.soul.quality || '').substring(0, 20);
+      s.soul.xian = safeNum(s.soul.xian, 0, 10, 0);
+    }
+    if(typeof s.dual === 'object' && s.dual !== null){
+      s.dual.name = escapeHtml(s.dual.name || '').substring(0, 50);
+    }
+    if(!Array.isArray(s.achievements)) s.achievements = [];
+    s.achievements = s.achievements.map(a=>escapeHtml(a).substring(0, 50)).slice(0, 100);
+    if(typeof s.attrs !== 'object' || s.attrs === null) s.attrs = {};
+    // 限制日志条数（最多1000条），防止资源耗尽
+    if(!Array.isArray(s.log)) s.log = [];
+    s.log = s.log.slice(0, 1000).map(l=>{
+      if(typeof l !== 'object' || l === null) return {text:'', cls:'', age:null};
+      return {
+        text: sanitizeLogHtml(l.text || '').substring(0, 500), // DL_RS_4.178：日志做危险HTML过滤，保留游戏内部安全标签
+        cls: escapeHtml(l.cls || '').substring(0, 50),
+        age: (l.age !== null && l.age !== undefined) ? safeNum(l.age, 0, 9999, null) : null
+      };
+    });
+    if(!Array.isArray(s.rings)) s.rings = [];
+    s.rings = s.rings.slice(0, 20).map(r=>{
+      if(typeof r !== 'object' || r === null) return {year:0, name:'', skill:''};
+      return {
+        year: safeNum(r.year, 0, 9999999, 0),
+        name: escapeHtml(r.name || '').substring(0, 50),
+        skill: escapeHtml(r.skill || '').substring(0, 50)
+      };
+    });
+    if(!Array.isArray(s.bones)) s.bones = [];
+    s.bones = s.bones.slice(0, 20).map(b=>{
+      if(typeof b !== 'object' || b === null) return {grade:'', slot:'', skill:''};
+      return {
+        grade: escapeHtml(b.grade || '').substring(0, 20),
+        slot: escapeHtml(b.slot || '').substring(0, 20),
+        skill: escapeHtml(b.skill || '').substring(0, 50)
+      };
+    });
+    return s;
+  }).filter(s=>s !== null);
+  return data;
+}
 function bar(attr, val, cls){
   // 属性仅显示名称+数值（无横条）；战斗四维不设上限，不做百分比条
   return `<div class="attrbox ${cls||''}"><div class="nm">${attr}</div><div class="vl">${typeof val === 'string' ? val : Math.floor(val)}</div></div>`;
@@ -1358,13 +1600,18 @@ function realmTitle(){
    powerBreakdown() 返回各项明细供「战力构成」面板展示（DL_RS_4.42 战力透明化）。 */
 function powerBreakdown(){
   const a = G.a;
+  // DL_RS_4.178：数值健壮性——防止Infinity/NaN导致战力计算异常
+  const sLi = isFinite(a.力量) ? a.力量 : 0;
+  const sMin = isFinite(a.敏捷) ? a.敏捷 : 0;
+  const sTi = isFinite(a.体质) ? a.体质 : 0;
+  const sJing = isFinite(a.精神力) ? a.精神力 : 0;
   // 普通人基准：四维全 5 的普通人为战力基准 5；超过普通人的部分按权重加成
-  const base = 5 + (a.力量-5)*2 + (a.敏捷-5)*1.5 + (a.体质-5)*1.5 + (a.精神力-5)*2;
+  const base = 5 + (sLi-5)*2 + (sMin-5)*1.5 + (sTi-5)*1.5 + (sJing-5)*2;
   // 魂环战力按年限（原著魂环强度=年限，十年/百年/千年/万年/十万年），魂技强度随环位递增
   let rings = 0, skills = 0;
-  G.rings.forEach((r, i)=>{ rings += ringLevel(r.y).p; skills += ringSkillP(i); });
+  (G.rings||[]).forEach((r, i)=>{ rings += ringLevel(r.y).p; skills += ringSkillP(i); }); // DL_RS_4.178：空值检查
   // 双生武魂：副武魂魂环魂技同样计入战力（原著双生武魂战力叠加，副环亦为战斗体系一部分）
-  if(G.dual && G.dualRings) G.dualRings.forEach((r, i)=>{ rings += ringLevel(r.y).p; skills += ringSkillP(i); });
+  if(G.dual && G.dualRings) (G.dualRings||[]).forEach((r, i)=>{ rings += ringLevel(r.y).p; skills += ringSkillP(i); });
   // 境界倍率：指数曲线（每大境界约 ×1.28），体现原著"境界越高差距越大"
   const mult = Math.pow(1.28, tierOf(G.lv));
   // 武魂品质战力系数（DL_RS_4.4）：武魂对战力影响极大——顶级/神级武魂战力远超同境界普通武魂
@@ -1970,6 +2217,10 @@ $('btnBegin').onclick = ()=>{
 /* ============ 日志 ============ */
 function addLog(text, cls){
   G.log.push({text, cls, age: (G && G.age!==undefined) ? G.age : null});
+  // DL_RS_4.178：G.log数组软上限——防止长时间挂机或恶意超大存档导致内存耗尽
+  if(G.log.length > 5000){
+    G.log.splice(0, G.log.length - 5000);
+  }
   const box = $('logBox');
   // 自动挂机长时间运行：限制日志条数避免 DOM 膨胀
   if(box.children.length > 500){
@@ -2000,19 +2251,32 @@ function capLvBySoul(g){
 /* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
 /* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
 /* 紧凑属性条渲染（动作按钮区域内，手机上无需上划即可查看关键属性） */
+// 上一次属性值（用于变化高亮检测）
+let _prevAttrs = null;
 function renderCompactStats(){
   const g=G, a=g.a;
   const cs = document.getElementById("compactStats");
   if(!cs) return;
+  const cur = {力量:a.力量, 敏捷:a.敏捷, 体质:a.体质, 精神力:a.精神力, 悟性:a.悟性, 家境:a.家境, 天命:a.天命, 战力:power()};
+  const hl = (k)=>{
+    if(!_prevAttrs) return '';
+    const diff = cur[k] - _prevAttrs[k];
+    if(Math.abs(diff) > 0.01){
+      const cls = diff > 0 ? 'attr-highlight attr-up' : 'attr-highlight attr-down';
+      return ' class="'+cls+'"';
+    }
+    return '';
+  };
   cs.innerHTML =
-    `<span>力量<b>${Math.floor(a.力量)}</b></span>
-     <span>敏捷<b>${Math.floor(a.敏捷)}</b></span>
-     <span>体质<b>${Math.floor(a.体质)}</b></span>
-     <span>精神<b>${Math.floor(a.精神力)}</b></span>
-     <span>悟性<b>${Math.floor(a.悟性)}</b></span>
-     <span>家境<b>${Math.floor(a.家境)}</b></span>
-     <span>天命<b>${Math.floor(a.天命)}</b></span>
-     <span class="cs-power">战力<b>${power()}</b></span>`;
+    `<span>力量<b${hl('力量')}>${Math.floor(a.力量)}</b></span>
+     <span>敏捷<b${hl('敏捷')}>${Math.floor(a.敏捷)}</b></span>
+     <span>体质<b${hl('体质')}>${Math.floor(a.体质)}</b></span>
+     <span>精神<b${hl('精神力')}>${Math.floor(a.精神力)}</b></span>
+     <span>悟性<b${hl('悟性')}>${Math.floor(a.悟性)}</b></span>
+     <span>家境<b${hl('家境')}>${Math.floor(a.家境)}</b></span>
+     <span>天命<b${hl('天命')}>${Math.floor(a.天命)}</b></span>
+     <span class="cs-power">战力<b${hl('战力')}>${power()}</b></span>`;
+  _prevAttrs = cur;
 }
 function renderGame(){
   const g=G, a=g.a;
@@ -2114,13 +2378,19 @@ function renderChain(){
 function cultBase(){
   const g=G, a=g.a;
   if(g.soul.xian === 0) return 0; // 先天魂力 0：无法修炼魂力
-  let base = CFG.cult.base + g.soul.xian*CFG.cult.wXian + a.体质*CFG.cult.wBody
-       + a.悟性*CFG.cult.wWis + a.家境*CFG.cult.wFam + g.cultBonus;
+  // DL_RS_4.178：数值健壮性——防止Infinity/NaN导致修炼收益爆炸
+  const _xian = isFinite(g.soul.xian) ? g.soul.xian : 0;
+  const _ti = isFinite(a.体质) ? a.体质 : 0;
+  const _wu = isFinite(a.悟性) ? a.悟性 : 0;
+  const _jia = isFinite(a.家境) ? a.家境 : 0;
+  const _bonus = isFinite(g.cultBonus) ? g.cultBonus : 0;
+  let base = CFG.cult.base + _xian*CFG.cult.wXian + _ti*CFG.cult.wBody
+       + _wu*CFG.cult.wWis + _jia*CFG.cult.wFam + _bonus;
   // 原著设定：废武魂即使在先天 1-2 级，也极难突破第一关口（10级）——突破前修炼额外瓶颈
   // 瓶颈 0.10：废武魂（先天 1-2 级）历练流几乎一生卡在魂士；唯属性极好且坚持苦修者，
   // 方可在暮年勉强抵达 10 级关口，符合"废武魂难以修炼到突破10级"
   if(g.lv < 10 && g.soul.quality==='fei') base *= 0.10;
-  let m = CFG.soulQuality[g.soul.quality].mult; // DL_RS_4.61：武魂变异不再叠加额外修炼修正（变异仅通过品质本身影响修炼）
+  let m = (CFG.soulQuality[g.soul.quality] || {}).mult || 1.0; // DL_RS_4.178：空值检查，防止品质不存在时报错
   // 优良武魂品质突破（_youBreak）：武魂升华，修炼倍率跃升至 1.08（仅略高于优良），
   // 借助寿元突破勉强冲击 90 级封号斗罗；但 90 级后修炼额外瓶颈 ×0.45——"勉强到 90，再想寸进极为困难"，
   // 99 级极限斗罗刚需顶级/神级武魂（非硬上限，仅极难）
@@ -2250,9 +2520,9 @@ function lifeCapOf(){
       // DL_RS_4.89：90 级以下寿元上限「出生时定死一次」，跨境界档位（10/20/30…级）不再重算——
       // 否则 tierOf 每 10 级一档、lifeCapOf 跨档触发重随机，导致局内寿元上限随等级漂移
       if(!g._lifeBase){
-        const p = {fei:1.6, pu:1.2, you:0.85, ding:0.5, super:0.4, shen:0.3}[g.soul.quality]||1.2;
+        const p = {fei:1.6, pu:1.2, you:0.85, ding:0.5, super:0.4, shen:0.3}[(g.soul||{}).quality]||1.2;
         let cap = 80 + Math.pow(Math.random(), p) * 20;
-        if(g.soul.cat==='zhi') cap = Math.max(cap, 85);
+        if((g.soul||{}).cat==='zhi') cap = Math.max(cap, 85);
         cap += lunhuiVal('life');
         g._lifeBase = Math.round(cap);
       }
@@ -2267,7 +2537,10 @@ function lifeCapOf(){
   // DL_RS_4.62：寿命上限 = 档位基准 - 神考削减，绝不被当前年龄推高——
   // 否则 age 超过基准后 lifeCap = age+5 恒大于 age，玩家将无限存活（长生不死漏洞）。
   // 神考失败削减的寿元（_lifeCut）为持久惩罚，档位重算/缓存/优良解锁均不覆盖
-  g.lifeCap = Math.round((g._lifeBase || g.lifeCap || 0) - (g._lifeCut || 0));
+  // DL_RS_4.178：数值健壮性——限制寿元范围，防止伪永生（恶意存档修改_lifeBase为极大值）
+  const _lb = isFinite(g._lifeBase) ? g._lifeBase : 0;
+  const _lc = isFinite(g._lifeCut) ? g._lifeCut : 0;
+  g.lifeCap = Math.max(1, Math.min(9999, Math.round((_lb || g.lifeCap || 0) - _lc)));
   return g.lifeCap;
 }
 
@@ -2504,7 +2777,17 @@ function doAction(kind){
     if(r<0.11){
       const ev = pick(['偶遇一株仙草，服下后体质大增','猎得一块魂骨，融合后战力暴涨','在遗迹中发现修炼心得，悟性大进']);
       if(ev.includes('仙草')){ a.体质+=8; addLog(`<b>机缘：</b>${ev}（体质+8）`,'good');}
-      else if(ev.includes('魂骨')){ a.体质+=10; if(g.achievements.indexOf('融合魂骨')<0) g.achievements.push('融合魂骨'); addLog(`<b>机缘：</b>${ev}（体质+10）`,'good');}
+      else if(ev.includes('魂骨')){
+        const bi = equipBone('千年');
+        if(bi){
+          if(g.achievements.indexOf('融合魂骨')<0) g.achievements.push('融合魂骨');
+          addLog(`<b>机缘：</b>${ev}——<b>${bi.grade}·${bi.slot}</b> 融骨入体，${bi.main}+${bi.mVal}${bi.sVal>0?('、'+bi.sub+'+'+bi.sVal):''}，根基更厚。`,'good');
+        } else {
+          a.体质+=10;
+          if(g.achievements.indexOf('融合魂骨')<0) g.achievements.push('融合魂骨');
+          addLog(`<b>机缘：</b>${ev}（体质+10）`,'good');
+        }
+      }
       else { a.悟性 += gainWu(10); a.精神力+=6; addLog(`<b>机缘：</b>${ev}（悟性+${gainWu(10)}，精神力+6）`,'good');}
     } else if(r<0.18){
       const dmg=ri(4,10);
@@ -2544,8 +2827,9 @@ function doAction(kind){
     for(let i=0;i<9;i++){ if(floorLv >= CFG.ring.gates[i] && g.rings.length <= i){ needIdx = i; break; } }
     // DL_RS_4.47：到关口直接猎魂，吸收魂环后自然突破（取消额外突破判定）
     if(needIdx >= 0){
-      addLog(`魂力抵达 <b>${CFG.ring.gates[needIdx]}级</b> 关口，需猎取魂环方可突破！`, 'sys');
-      openHuntUI(); return;
+      // DL_RS_4.169：先天魂力0级者无法引气入体，不能吸收魂环，强行猎魂只会经脉寸断
+      if(g.soul && g.soul.xian===0){ addLog('<b>无法猎魂：</b>你先天魂力为0，无法引气入体，纵然猎得魂兽也无法吸收魂环，只能黯然离去。','bad'); }
+      else { addLog(`魂力抵达 <b>${CFG.ring.gates[needIdx]}级</b> 关口，需猎取魂环方可突破！`, 'sys'); openHuntUI(); return; }
     }
   }
   renderCompactStats(); // 动作执行后立即更新紧凑属性条（手机上无需上划即可查看属性变化）
@@ -2617,10 +2901,13 @@ const ORG_REQ = {
     minAge: 12,
     check: function(g){
       const s=g.soul||{};
+      // 史莱克"只收怪物，不收普通人"：废武魂一律不收
+      if(s.quality==='fei') return {pass:false, reason:'只收怪物：废武魂不收'};
       if(['you','ding','super','shen'].indexOf(s.quality)>=0) return {pass:true};
-      if(s.xian>=8) return {pass:true};
-      if(g.a.悟性>=50) return {pass:true};
-      return {pass:false, reason:'只收怪物：优良以上武魂，或先天魂力≥8，或悟性≥50'};
+      // 普通武魂需极高天赋才能被视为"怪物"
+      if(s.xian>=9) return {pass:true};
+      if(g.a.悟性>=80 && g.a.天命>=60) return {pass:true};
+      return {pass:false, reason:'只收怪物：优良以上武魂，或先天魂力≥9，或悟性≥80+天命≥60'};
     }
   },
   '武魂殿': {
@@ -2763,7 +3050,13 @@ function joinOrg(org){
 }
 function gainMaster(){
   const g=G;
-  const m = pick(['一位魂圣强者','某宗门长老','隐世的老封号斗罗','武魂殿红衣主教']);
+  // 敌对势力检查：史莱克学院/天斗皇家学院/星罗帝国军方成员不能拜师武魂殿
+  const hostileOrgs = ['史莱克学院','天斗皇家学院','星罗帝国军方'];
+  let pool = ['一位魂圣强者','某宗门长老','隐世的老封号斗罗'];
+  if(hostileOrgs.indexOf(g.org)<0){
+    pool.push('武魂殿红衣主教');
+  }
+  const m = pick(pool);
   g.master = m;
   g.cultBonus += 1.2;
   addLog(`机缘之下，你拜师 ${m}，修炼事半功倍（修炼基数+1.2）。`,'good');
@@ -2947,9 +3240,9 @@ function resolveHunt(choice, idx){
     /* 吸收极限（DL_RS_4.8）：魂环年限超过肉身可承受上限时，超限吸收有反噬风险 */
     const cap = maxRingCap(idx);
     /* 十万年魂环（DL_RS_4.13）：≥10 万年的十万年魂环蕴含暴戾神性，须强横肉身方可承载——
-       体质 <55 者强行吸收，反噬概率极高（原著十万年魂兽凶名赫赫，非肉身登峰造极者不可触碰） */
-    if(ry >= 100000 && a.体质 < 55){
-      const pWeak = clamp(0.9 - Math.max(0,(a.体质-5))*0.012, 0.3, 0.95);
+       体质 <70 者强行吸收，反噬概率极高（原著十万年魂兽凶名赫赫，非肉身登峰造极者不可触碰） */
+    if(ry >= 100000 && a.体质 < 70){
+      const pWeak = clamp(0.9 - Math.max(0,(a.体质-5))*0.013, 0.05, 0.95);
       if(Math.random() < pWeak){
         const delta = ri(1,3);
         g.lv = Math.max(1, CFG.ring.gates[Math.min(idx,9)] - delta);
@@ -3042,11 +3335,23 @@ function resolveHunt(choice, idx){
    三级神祇（原著未及提名，多为神界普通神官或边缘神位——曙光/溪泉/山岳/星火等边缘神位）。 */
 const GOD_TIER_NAME = {1:'三级神', 2:'二级神', 3:'一级神', 4:'神王'};
 const GODS = {
-  /* 三级神（tier 1）：边缘神位——门槛最低（核心≥130、战力≥4万） */
+  /* DL_RS_4.176：神位金字塔形分布重构——三级神12个（基础盘）、二级神14个、一级神12个（稀有）、神王5个（至高）
+     元素神从一级神降为二级神，新增自然神/生活神/职业神丰富低阶神位选择 */
+  /* 三级神（tier 1）：边缘神位——门槛最低（核心≥130、战力≥4万），大多数魂师成神的归宿 */
   '曙光之神': {tier:1, place:'神界边缘', core:'敏捷', req:{敏捷:130, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
   '溪泉之神': {tier:1, place:'神界边缘', core:'体质', req:{体质:130, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
   '山岳之神': {tier:1, place:'神界边缘', core:'力量', req:{力量:130, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
   '星火之神': {tier:1, place:'神界边缘', core:'精神力', req:{精神力:130, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
+  /* 自然神（三级） */
+  '花神':     {tier:1, place:'神界边缘', core:'精神力', req:{精神力:130, 体质:100, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '树神':     {tier:1, place:'神界边缘', core:'体质', req:{体质:130, 精神力:100, 战力:40000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '雷神':     {tier:1, place:'神界边缘', core:'力量', req:{力量:130, 敏捷:100, 战力:42000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '电神':     {tier:1, place:'神界边缘', core:'敏捷', req:{敏捷:130, 精神力:100, 战力:42000}, gates:[100,116,132,148,164,180,196,212,228]},
+  /* 生活神（三级） */
+  '厨神':     {tier:1, place:'神界边缘', core:'体质', req:{体质:130, 悟性:100, 战力:38000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '农神':     {tier:1, place:'神界边缘', core:'体质', req:{体质:130, 力量:100, 战力:38000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '商神':     {tier:1, place:'神界边缘', core:'精神力', req:{精神力:130, 悟性:100, 战力:38000}, gates:[100,116,132,148,164,180,196,212,228]},
+  '匠神':     {tier:1, place:'神界边缘', core:'力量', req:{力量:130, 悟性:100, 战力:38000}, gates:[100,116,132,148,164,180,196,212,228]},
   /* 二级神（tier 2）：真神之位——核心≥200、战力≥9万 */
   '战神':     {tier:2, place:'神界', core:'力量', req:{力量:200, 体质:130, 战力:90000}, gates:[120,138,156,174,192,210,228,246,264]},
   '食神':     {tier:2, place:'神界', core:'体质', req:{体质:200, 悟性:130, 战力:90000}, gates:[120,138,156,174,192,210,228,246,264]},
@@ -3054,12 +3359,23 @@ const GODS = {
   '凤凰之神': {tier:2, place:'神界', core:'力量', req:{力量:200, 体质:130, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
   '速度之神': {tier:2, place:'神界', core:'敏捷', req:{敏捷:200, 体质:130, 战力:90000}, gates:[120,138,156,174,192,210,228,246,264]},
   '蝶神':     {tier:2, place:'神界', core:'精神力', req:{精神力:200, 敏捷:130, 战力:90000}, gates:[120,138,156,174,192,210,228,246,264]},
-  /* 一级神（tier 3）：主神级真神——核心≥265、战力≥15万（须神级武魂极限修炼方有资格） */
+  /* 元素神（从一级神降为二级神） */
+  '火神':     {tier:2, place:'神界', core:'力量', req:{力量:210, 体质:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '水神':     {tier:2, place:'神界', core:'体质', req:{体质:210, 精神力:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '土神':     {tier:2, place:'神界', core:'体质', req:{体质:210, 力量:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '风神':     {tier:2, place:'神界', core:'敏捷', req:{敏捷:210, 体质:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '光神':     {tier:2, place:'神界', core:'力量', req:{力量:210, 天命:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '黑暗之神': {tier:2, place:'神界', core:'精神力', req:{精神力:210, 力量:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  '空间之神': {tier:2, place:'神界', core:'敏捷', req:{敏捷:210, 精神力:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  /* 职业神（二级，新增） */
+  '剑神':     {tier:2, place:'神界', core:'力量', req:{力量:210, 敏捷:140, 战力:95000}, gates:[120,138,156,174,192,210,228,246,264]},
+  /* 一级神（tier 3）：主神级真神——核心≥265、战力≥13.5-15万（须神级武魂极限修炼方有资格），稀有 */
   '海神':     {tier:3, place:'海神岛', core:'体质', req:{体质:265, 力量:165, 战力:140000}, gates:[150,170,190,210,230,250,270,290,310]},
   '天使神':   {tier:3, place:'武魂殿', core:'体质', req:{体质:265, 力量:165, 战力:140000}, gates:[150,170,190,210,230,250,270,290,310]},
   '罗刹神':   {tier:3, place:'深渊', core:'敏捷', req:{敏捷:265, 战力:140000}, gates:[155,175,195,215,235,255,275,295,315]},
   '情绪之神': {tier:3, place:'神界', core:'精神力', req:{精神力:265, 体质:165, 战力:140000}, gates:[150,170,190,210,230,250,270,290,310]},
   '破坏神':   {tier:3, place:'神界', core:'力量', req:{力量:265, 体质:165, 战力:140000}, gates:[155,175,195,215,235,255,275,295,315]},
+  /* 七宗罪神（一级神，原著主神级） */
   '贪婪之神': {tier:3, place:'神界', core:'力量', req:{力量:265, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
   '色欲之神': {tier:3, place:'神界', core:'精神力', req:{精神力:265, 敏捷:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
   '暴食之神': {tier:3, place:'神界', core:'体质', req:{体质:265, 力量:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
@@ -3067,14 +3383,7 @@ const GODS = {
   '懒惰之神': {tier:3, place:'神界', core:'体质', req:{体质:265, 悟性:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
   '傲慢之神': {tier:3, place:'神界', core:'力量', req:{力量:265, 精神力:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
   '愤怒之神': {tier:3, place:'神界', core:'力量', req:{力量:265, 体质:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '火神':     {tier:3, place:'神界', core:'力量', req:{力量:270, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '水神':     {tier:3, place:'神界', core:'体质', req:{体质:270, 精神力:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '土神':     {tier:3, place:'神界', core:'体质', req:{体质:270, 力量:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '风神':     {tier:3, place:'神界', core:'敏捷', req:{敏捷:270, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '光神':     {tier:3, place:'神界', core:'力量', req:{力量:270, 天命:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '黑暗之神': {tier:3, place:'神界', core:'精神力', req:{精神力:270, 力量:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  '空间之神': {tier:3, place:'神界', core:'敏捷', req:{敏捷:270, 精神力:165, 战力:135000}, gates:[150,170,190,210,230,250,270,290,310]},
-  /* 神王（tier 4）：神界至高权柄——核心≥330、战力≥21万（万古罕有，唯极限强者可承） */
+  /* 神王（tier 4）：神界至高权柄——核心≥285-290、战力≥15.5-16万（万古罕有，唯极限强者可承） */
   '修罗神':   {tier:4, place:'杀戮之都', core:'力量', req:{力量:285, 战力:155000}, gates:[190,212,234,256,278,300,322,344,366]},
   '毁灭之神': {tier:4, place:'毁灭神界', core:'力量', req:{力量:290, 战力:160000}, gates:[200,223,246,269,292,315,338,361,384]},
   '生命女神': {tier:4, place:'生命神界', core:'体质', req:{体质:285, 精神力:170, 战力:155000}, gates:[185,206,227,248,269,290,311,332,353]},
@@ -3100,9 +3409,10 @@ const WOMAN_GODS = ['生命女神','九彩神女','蝶神'];
 function godAvail(a){
   const pw = power(); // DL_RS_4.84：战力只算一次，避免 filter 内对每个神位重复计算 power()
   const gd = (G && G.gender) || '男';
+  const _a = a || (G && G.a) || {}; // DL_RS_4.178：默认使用G.a，防止无参数调用时报错
   return Object.keys(GODS).filter(k=>{
     if(WOMAN_GODS.indexOf(k)>=0 && gd!=='女') return false; // 女性专属神位：仅女性可承接
-    const r=GODS[k].req; return Object.keys(r).every(key=> ((key==='战力')? pw : a[key]) >= r[key]);
+    const r=GODS[k].req; return Object.keys(r).every(key=> ((key==='战力')? pw : (_a[key]||0)) >= r[key]);
   });
 }
 // DL_RS_4.66：神考门槛按继承时属性动态生成——起点 = 继承时核心属性（玩家已达标第 1 考），
@@ -3894,7 +4204,9 @@ function resolveEvent(ev, idx){
       else if(k==='声望'){ g.prestige += Math.round(o.eff[k]*m); }
       else if(k==='lv'){ // DL_RS_4.77：大机缘直接加魂力等级——只增不减、不受个体资质上限（youApt）截断倒退
         //（原逻辑会被优良武魂资质上限拉回导致等级倒退，且与"无资质硬上限、大机缘破关"设定相悖；99 级为凡人之巅）
-        g.lv = Math.min(Math.max(g.lv + o.eff[k], g.lv), 99); capLvBySoul(g); addLog(`魂力等级 +${o.eff[k]}！`,'good'); }
+        // DL_RS_4.169：先天魂力0级者无法引气入体，纵然有神光灌顶也无法凝聚魂力，只能增强肉身
+        if(g.soul && g.soul.xian===0){ addLog('<b>神光灌体，却无法凝聚魂力——</b>你先天魂力为0，无法引气入体，神光只能淬炼你的肉身与精神。体质+8，精神力+8。','good'); a.体质+=8; a.精神力+=8; }
+        else { g.lv = Math.min(Math.max(g.lv + o.eff[k], g.lv), 99); capLvBySoul(g); addLog(`魂力等级 +${o.eff[k]}！`,'good'); } }
       else if(k==='youBreak'){
         // 武魂升华（大机缘）：修炼倍率跃升至 1.08（DL_RS_4.6 仅略高于优良，杜绝膨胀）、寿元突破人类极限、
         // 可冲击封号斗罗 90 级；90 级后修炼另有额外瓶颈 ×0.45（勉强到 90，再想寸进极为困难）
@@ -3932,10 +4244,11 @@ function resolveEvent(ev, idx){
   // 魂骨机缘（DL_RS_4.41）：事件选项 bone 字段 → 装备一件魂骨（与猎魂掉落共用装备栏/六部位/同部位替换）
   if(o.bone){
     const info = equipBone(o.bone);
-    addLog(`<b>魂骨入体！</b>远古魂骨与你完全契合——<b>${info.grade}·${info.slot}</b> 融骨入体，${info.main}+${info.mVal}${info.sVal>0?('、'+info.sub+'+'+info.sVal):''}${info.skill?('，附「'+info.skill+'」'):''}，根基更厚。`,'good');
+    if(info) addLog(`<b>魂骨入体！</b>远古魂骨与你完全契合——<b>${info.grade}·${info.slot}</b> 融骨入体，${info.main}+${info.mVal}${info.sVal>0?('、'+info.sub+'+'+info.sVal):''}${info.skill?('，附「'+info.skill+'」'):''}，根基更厚。`,'good');
   }
   // DL_RS_4.101 事件联动：选项 evSet 记录机缘标记；evAdd 在已拥有标记时追加联动奖励
   if(o.evSet){ g.evFlags = g.evFlags||{}; g.evFlags[o.evSet]=true; addLog('<b>机缘引线：</b>命运之线悄然系上。','good'); }
+  if(o.evClear && g.evFlags){ delete g.evFlags[o.evClear]; } // 清除机缘标记（选项直接拒绝/放弃时终止后续事件链）
   if(o.evAdd && g.evFlags && g.evFlags[o.evAdd.flag]){
     const ex2 = o.evAdd.eff||{};
     const act2 = {};
@@ -3955,7 +4268,7 @@ function resolveEvent(ev, idx){
     } else {
       rollWin = false;
       addLog(`<b>失败：</b>${o.roll.failText||'代价沉重。'}`,'bad');
-      if(o.roll.fail) Object.keys(o.roll.fail).forEach(k=>{ if(k==='金魂币'){g.money+=o.roll.fail[k];} else if(k==='子嗣'){ g.children=Math.max(0,(g.children||0)+o.roll.fail[k]); addLog(`子嗣 ${o.roll.fail[k]>0?'+':''}${o.roll.fail[k]}。`,'sys'); } else a[k]+=o.roll.fail[k]; });
+      if(o.roll.fail) Object.keys(o.roll.fail).forEach(k=>{ if(k==='金魂币'){g.money+=o.roll.fail[k];} else if(k==='子嗣'){ g.children=Math.max(0,(g.children||0)+o.roll.fail[k]); addLog(`子嗣 ${o.roll.fail[k]>0?'+':''}${o.roll.fail[k]}。`,'sys'); } else if(k==='evClear'){ if(g.evFlags) delete g.evFlags[o.roll.fail.evClear]; } else a[k]+=o.roll.fail[k]; });
       if(o.roll.death && Math.random()<o.roll.death){ die(o.roll.deathText||'死于非命'); return; }
     }
   }
@@ -3994,6 +4307,7 @@ function resolveDuel(ev, idx){
   const o = ev.opts[idx];
   if(o){ // DL_RS_4.101 事件联动：对决选项同样支持 evSet/evAdd
     if(o.evSet){ g.evFlags = g.evFlags||{}; g.evFlags[o.evSet]=true; addLog('<b>机缘引线：</b>命运之线悄然系上。','good'); }
+  if(o.evClear && g.evFlags){ delete g.evFlags[o.evClear]; } // 清除机缘标记（选项直接拒绝/放弃时终止后续事件链）
     if(o.evAdd && g.evFlags && g.evFlags[o.evAdd.flag]){
       const ex2 = o.evAdd.eff||{};
       const act2 = {};
@@ -4114,12 +4428,14 @@ function resolveElite(o){
     g.money += r; g.prestige += 40; g.a.力量 += 4; g.a.敏捷 += 3; g.a.体质 += 3; g.a.悟性 += gainWu(4);
     if(g.achievements.indexOf('精英大赛冠军')<0) g.achievements.push('精英大赛冠军');
     const bi = equipBone('万年');
-    addLog(`<b>问鼎武魂城！</b>你在武魂城总决赛上力压群雄，夺得全大陆高级魂师学院精英大赛<b>总冠军</b>！金魂币 +${r}、声望 +40，教皇亲授<b>万年·${bi.slot}</b>魂骨，名动天下！`,'good');
+    if(bi) addLog(`<b>问鼎武魂城！</b>你在武魂城总决赛上力压群雄，夺得全大陆高级魂师学院精英大赛<b>总冠军</b>！金魂币 +${r}、声望 +40，教皇亲授<b>万年·${bi.slot}</b>魂骨，名动天下！`,'good');
+    else addLog(`<b>问鼎武魂城！</b>你在武魂城总决赛上力压群雄，夺得全大陆高级魂师学院精英大赛<b>总冠军</b>！金魂币 +${r}、声望 +40，教皇亲授万年魂骨——可惜你魂力不足无法融合，只能交由宗门保管。`,'good');
   } else if(wins === 7){
     const r = Math.round(500 + g.lv*12);
     g.money += r; g.prestige += 20; g.a.力量 += 2; g.a.敏捷 += 1; g.a.悟性 += gainWu(3);
     const bi = equipBone('万年');
-    addLog(`<b>大赛 · 亚军！</b>你一路杀入武魂城总决赛，惜败于绝顶高手。大赛方赠<b>万年·${bi.slot}</b>魂骨，金魂币 +${r}、声望 +20，虽败犹荣。`,'good');
+    if(bi) addLog(`<b>大赛 · 亚军！</b>你一路杀入武魂城总决赛，惜败于绝顶高手。大赛方赠<b>万年·${bi.slot}</b>魂骨，金魂币 +${r}、声望 +20，虽败犹荣。`,'good');
+    else addLog(`<b>大赛 · 亚军！</b>你一路杀入武魂城总决赛，惜败于绝顶高手。大赛方赠万年魂骨——可惜你魂力不足无法融合，只能交由宗门保管，金魂币 +${r}、声望 +20，虽败犹荣。`,'good');
   } else if(wins >= 5){
     const r = Math.round(300 + g.lv*8);
     g.money += r; g.prestige += 12; g.a.力量 += 1; g.a.悟性 += gainWu(1);
@@ -4204,6 +4520,11 @@ function die(cause){
   const g=G;
   g.alive=false; g.deathCause=cause;
   addLog(`—— ${cause} ——`,'bad');
+  // DL_RS_4.163：死亡时立即关闭自动模式，防止 setInterval 在 finishLife 后继续触发 renderGame 覆盖结局页面
+  if(AUTO && AUTO.on){
+    AUTO.on=false;
+    const _ba=$('btnAuto'); if(_ba){ _ba.textContent='自动'; _ba.classList.remove('auto-on'); }
+  }
   finishLife();
 }
 
@@ -4213,19 +4534,22 @@ function die(cause){
 function endScoreOf(){
   const g=G;
   let score = 0;
-  score += g.lv * 12;                                  // 境界
-  score += Math.round(power() / 600);                  // 战力
+  // DL_RS_4.178：数值健壮性——防止Infinity/NaN导致评分计算异常
+  const safeLv = isFinite(g.lv) ? g.lv : 0;
+  score += safeLv * 12;                                  // 境界
+  const pw = power();
+  score += Math.round(isFinite(pw) ? pw / 600 : 0);    // 战力
   score += (g.achievements||[]).length * 25;           // 成就
   if(g.godTitle) score += 150;                         // 神位传承
-  if(g.lv >= 100) score += 500;                        // 成神
+  if(safeLv >= 100) score += 500;                      // 成神
   // DL_RS_4.79：属性全部计入——战斗四维（普通人基准 5）均值超 5 部分 ×3；
   // 悟性/家境/天命（上限 100、开局 5-70）同样以 5 为基准，超部分 ×1（成长空间有限故权重较低）
-  const avg = FIGHT_ATTRS.reduce((s,k)=>s+g.a[k],0) / 4;
+  const avg = FIGHT_ATTRS.reduce((s,k)=>s+(isFinite(g.a[k])?g.a[k]:0),0) / 4;
   score += Math.max(0, Math.round((avg - 5) * 3));     // 战斗四维（以普通人 5 为基准）
   OTHER_ATTRS.forEach(k=>{ score += Math.max(0, Math.round((g.a[k] - 5) * 1)); }); // 悟性/家境/天命
   // DL_RS_4.80：魂环按年限计分（十年+20/百年+40/千年+80/万年+140/十万年+240——年限越高价值越大）
   (g.rings||[]).forEach(r=>{
-    const y = r.y||0;
+    const y = isFinite(r.y) ? r.y : 0; // DL_RS_4.178：数值健壮性
     if(y >= 100000) score += 240;      // 十万年环
     else if(y >= 10000) score += 140;  // 万年环
     else if(y >= 1000) score += 80;    // 千年环
@@ -4304,6 +4628,126 @@ function ringTag(r, i){
   return `<span class="ering ${L.key}">第${i+1}环 · ${yearStr(r.y)}${r.beast?(' '+r.beast):''}「${r.skill}」</span>`;
 }
 /* 一世评语（DL_RS_4.7 优化）：多段文学化评语，结合结局 / 武魂 / 成就 / 际遇 / 寿元 */
+/* ============ 结局评语系统（数据驱动，新增评语只需改EVAL数据，不用改函数逻辑） ============ */
+// 第一段：命运总评（按条件匹配，每条件多条评语随机选取）
+// ctx = {g, s, qcn, pw, lv, ach, fateTxt, artifactTxt, godPathTxt}
+const EVAL_FIRST = [
+  {cond: c=>c.lv>=100 && c.g._heroFate && c.g.age<=45, texts:[
+    c=>`万古唯一的${c.qcn}，${c.s.name}——${c.g.age} 岁百级成神，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你触动了那传说中才会显现的逆天机缘，将无数人穷尽一生也走不完的神路，压缩成了短短数十载。斗罗大陆自此有了主角，而主角，就是你。`
+  ]},
+  {cond: c=>c.g.endTag==='神王', texts:[
+    c=>`万中无一的${c.qcn}，${c.s.name}觉醒的那一刻，命运便已写下结局。${c.godPathTxt}，百级成神，战力 ${c.pw.toLocaleString()}——${c.artifactTxt}你终登神王之位，执掌神界权柄。斗罗大陆万年的传说，皆以你为开篇。`,
+    c=>`世人只知${c.s.name}是${c.qcn}，却不知这 ${c.g.age} 个春秋里，你走出了怎样一条通天之路。百级成神，${c.artifactTxt}登临神王——从此神界之巅，有你一席。`
+  ]},
+  {cond: c=>c.g.endTag==='主神', texts:[
+    c=>`${c.qcn}${c.s.name}，修至百级，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你位列神界主神，坐镇中枢，俯瞰万界——下界魂师仰望的天穹，是你用 ${c.g.age} 年一步一步走上去的。`,
+    c=>`神界中枢，威压众神。${c.s.name}以${c.qcn}之姿修至百级，${c.artifactTxt}登主神之位——${c.g.age} 载修行，终成一方神主。`
+  ]},
+  {cond: c=>c.g.endTag==='二级神', texts:[
+    c=>`${c.qcn}${c.s.name}，${c.godPathTxt}，百级成神，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你位列神界二级神祇，于神界亦有一席之地——二级神之名，自此不朽。`,
+    c=>`神界何其大，能留下名字的却不多。${c.s.name}以${c.qcn}之资${c.godPathTxt}成神，位列二级神祇——${c.artifactTxt}这个名字，神界会记很久。`
+  ]},
+  {cond: c=>c.g.endTag==='三级神', texts:[
+    c=>`${c.qcn}${c.s.name}，${c.godPathTxt}，百级成神，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你位列神界边缘的三级神祇，神位虽微，却是凡人毕生无法企及的一步。`,
+    c=>`从下界的尘埃，到神界的门槛——${c.s.name}用 ${c.g.age} 年走完了这步凡人做梦都不敢想的路。三级神祇，亦是神。`
+  ]},
+  {cond: c=>c.g.endTag==='飞升', texts:[
+    c=>`${c.qcn}${c.s.name}，${c.godPathTxt}，百级成神，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你飞升神界，成为新晋神祇——从魂士到神祇，整整一世的跋涉，在此刻化为永恒。`,
+    c=>`魂士起步，神祇收尾。${c.s.name}${c.godPathTxt}飞升神界——${c.artifactTxt}这中间的每一级魂力，都是你亲手凿出来的。`
+  ]},
+  {cond: c=>c.g.endTag==='人界守护', texts:[
+    c=>`${c.qcn}${c.s.name}，百级成神，战力 ${c.pw.toLocaleString()}。${c.artifactTxt}你不赴神界，驻留人间，成为守护这片大陆的神祇——神界的荣光之下，你更偏爱这方烟火。`,
+    c=>`神界在招手，你却没有走。${c.s.name}百级成神，${c.artifactTxt}留守人间——你选的不是永生，是万家灯火。`
+  ]},
+  {cond: c=>c.lv>=100, texts:[
+    c=>`${c.qcn}${c.s.name}，修至百级，成就神位。${c.g.godTitle||''}考圆满，${c.artifactTxt}你的传说自此刻开始。`
+  ]},
+  {cond: c=>c.lv>=99, texts:[
+    c=>`99 级极限斗罗，凡人的尽头已被你走穿。${c.g.finalTitle?('世人皆称你「'+c.g.finalTitle+'」。'):''}${c.g.godTitle?('你继承'+c.g.godTitle+'之位，却终究未叩开神门——功亏一篑，亦是另一种圆满。'):'你从未获得神位传承，以凡人之躯抵达极限，本身就是最大的传说。'}`,
+    c=>`凡人修炼，自有尽头；而你把尽头走成了自己的名字。99 级极限斗罗${c.g.finalTitle?('「'+c.g.finalTitle+'」'):''}——${c.g.godTitle?('与神位擦肩，功亏一篑，却也已是凡间绝响。'):'没有神位传承，你仍是古往今来最接近神的人。'}`
+  ]},
+  {cond: c=>c.lv>=95, texts:[
+    c=>`${c.s.name}超级斗罗，${c.lv} 级巅峰战力 ${c.pw.toLocaleString()}。${c.g.finalTitle?('世人皆称你「'+c.g.finalTitle+'」。'):''}你已跨入大陆最巅峰的极少数之列，距极限斗罗仅一步之遥，${c.g.org?('于'+c.g.org+'名震天下'):'纵横大陆，威震一方'}。`,
+    c=>`${c.lv} 级超级斗罗——距极限斗罗只差半步，可这半步，多少人穷尽一生也迈不过去。${c.g.finalTitle?('世人皆称你「'+c.g.finalTitle+'」。'):''}${c.g.org?('于'+c.g.org+'，你的名字无人不晓'):'你的名字，已是大陆的传说'}。`
+  ]},
+  {cond: c=>c.lv>=90, texts:[
+    c=>`${c.s.name}封号，${c.lv} 级封号斗罗，战力 ${c.pw.toLocaleString()}。${c.g.finalTitle?('世人皆称你为「'+c.g.finalTitle+'」。'):''}大陆绝巅之列有你一席，${c.g.org?('于'+c.g.org+'扬名立万'):'纵横大陆，威名赫赫'}。`,
+    c=>`${c.lv} 级封号斗罗——这个高度，已足以让大陆绝大多数魂师仰望一生。${c.g.finalTitle?('「'+c.g.finalTitle+'」之名'):'你的名字'}${c.g.org?('在'+c.g.org+'无人不知'):'传遍大陆'}。`,
+    c=>`封号一出，谁与争锋。${c.lv} 级封号斗罗${c.g.finalTitle?('「'+c.g.finalTitle+'」'):''}，战力 ${c.pw.toLocaleString()}——${c.g.org?('于'+c.g.org+'名震一方'):'纵横大陆，一代传奇'}。`
+  ]},
+  {cond: c=>c.lv>=80, texts:[
+    c=>`魂斗罗，战力 ${c.pw.toLocaleString()}。你已能庇护一方势力，虽未封号，亦是当世豪杰——只是午夜梦回，仍会想起那座更高的山。`,
+    c=>`${c.lv} 级魂斗罗，距封号只一步之遥。${c.g.org?('你坐镇'+c.g.org+'，声名日隆'):'你已是当世有数的强者'}——只是那一步，终究没能迈过去。`
+  ]},
+  {cond: c=>c.lv>=70, texts:[
+    c=>`魂圣。武魂真身一出，寻常魂师俯首。${c.g.youApt===89?'你本有机会问鼎魂斗罗，却终究差了一线。':'这条路你没能走到尽头，却已足够耀眼。'}`,
+    c=>`魂圣之尊，武魂真身足以震慑一方。${c.g.youApt===89?'天赋本可问鼎魂斗罗，奈何时运差了一线。':'你凭这一身修为，走到了大多数人到不了的地方。'}`
+  ]},
+  {cond: c=>c.lv>=60, texts:[
+    c=>`魂帝，人中翘楚。这个境界已是绝大多数魂师毕生难以企及的高度，你的名字值得被记住。`,
+    c=>`魂帝之境，百魂师难出其右。${c.s.name}这一世，无愧于这个名字。`
+  ]},
+  {cond: c=>c.lv>=50, texts:[
+    c=>`魂王，小有名气。你于佣兵与宗门间立足，刀光剑影里走过半生，也算不枉这一世。`,
+    c=>`魂王境界，在魂师中已算翘楚。半生刀光剑影，${c.g.org?('在'+c.g.org+'也闯出了名头'):'也算闯出了一片天地'}。`
+  ]},
+  {cond: c=>c.lv>=40, texts:[
+    c=>`魂宗。一生平安，道侣在侧、儿孙绕膝——这样的人生，何尝不是圆满。`,
+    c=>`魂宗修为，不算顶尖，却够你用一辈子把日子过安稳。`
+  ]},
+  {cond: c=>c.lv>=30, texts:[
+    c=>`魂尊。不高不低，了此余生。你说平凡是种安稳，其实也是种智慧。`,
+    c=>`魂尊之境，不上不下。可你这一生，倒也过得安稳自在。`
+  ]},
+  {cond: c=>c.lv>=20, texts:[
+    c=>`大魂师。与大多数魂师一样，你的一生平淡而真实，像大陆上每一粒平凡的尘埃。`,
+    c=>`大魂师，寻常魂师里的寻常人。平凡的一生，同样值得好好过完。`
+  ]},
+  {cond: c=>c.lv>=10, texts:[
+    c=>`魂师。${c.s.name}陪你走过了最初的修行之路，只是这条路，终究没能走得更远。`,
+    c=>`魂师修为，初窥门径。平凡的路，平凡的人，却也是一段完整的魂师生涯。`
+  ]},
+  {cond: c=>c.lv>0, texts:[
+    c=>`魂士。${c.s.name}没能带你走得更远，但那些修炼的清晨与黄昏，你从未后悔。`,
+    c=>`魂士修为，在这片大陆上不值一提。但你认真活过的每一天，都算数。`
+  ]},
+  {cond: c=>c.s.xian===0, texts:[
+    c=>`先天魂力为零，测魂师一声叹息，便定了你的一生。但魂师之外的人间烟火，你一样没少尝——这一世，是你的。`,
+    c=>`没能觉醒魂力，你在魂师的世界里成了看客。可凡人的生活，你过得不比任何人差。`
+  ]},
+  {cond: c=>true, texts:[
+    c=>`没有觉醒出像样的天赋，你平凡地过完了一生，像一滴水汇入岁月的长河。`,
+    c=>`天赋平平，际遇平平。可这一生是你的，怎么过，都由你自己说了算。`
+  ]}
+];
+
+// 第三段：结语（按条件匹配，每条件多条结语随机选取）
+const EVAL_THIRD = [
+  {cond: c=>c.lv>=100 && c.g._heroFate && c.g.age<=45, texts:[
+    ' 你的故事，后来被写成了传说——大地上人人传颂的名字，便叫主角。'
+  ]},
+  {cond: c=>c.g.endTag==='神王', texts:[' 万古一瞬，神王不朽。',' 神界高台，从此有你一席；万古岁月，为你作证。']},
+  {cond: c=>c.g.endTag==='主神', texts:[' 主神之名，永镇神界。',' 坐镇神界中枢、威压八方的日子，才刚刚开始。']},
+  {cond: c=>c.g.endTag==='二级神', texts:[' 二级神祇，神界亦传其名。',' 神界千神，你不再是无名之辈。']},
+  {cond: c=>c.g.endTag==='三级神', texts:[' 神界边缘，亦是神。',' 神位虽微，亦是凡人不可企及的永恒。']},
+  {cond: c=>c.g.endTag==='飞升', texts:[' 从此，神界多了一段传说。',' 飞升那一刻，下界便只留你的名字。']},
+  {cond: c=>c.g.endTag==='人界守护', texts:[' 人间守护神，守的是万家灯火。',' 你没有去神界，人间却从此有了你的庇佑。']},
+  {cond: c=>c.lv>=95, texts:[' 超级斗罗，半步之遥便是神门。',' 极限斗罗的门槛，你已摸到了边。']},
+  {cond: c=>c.lv>=90, texts:[' 封号之尊，足以名垂青史。',' 封号之名，百年之后依然有人传颂。',' 魂师界的史册，有你重重的一笔。']},
+  {cond: c=>c.lv>=70, texts:[' 你的名字，曾照亮过一方天空。',' 一方之地，曾因你而扬名。']},
+  {cond: c=>c.lv>=40, texts:[' 平凡也好，辉煌也罢，这一世终是落幕。',' 岁月不居，这一世就此落下帷幕。']},
+  {cond: c=>true, texts:[' 历史的尘埃里，也有你的一粒。',' 滚滚红尘，你曾是其中一粒。']}
+];
+
+// 性格评语（数据驱动）
+const PERS_EVAL = {
+  '勇猛':['你性烈如火，一生好勇斗狠，却也从不后悔。','热血铸就的这一生，每一步都走得干脆利落。'],
+  '沉稳':['你一生谨慎持重，稳字当头，终究稳出了自己的道。','不急不躁，步步为营，是你这一生的注脚。'],
+  '机敏':['你八面玲珑，善察人心，一生少走弯路。','机敏圆滑，却也是你在这乱世活得最久的本事。'],
+  '隐忍':['你隐忍半生，厚积薄发，终得所愿。','能屈能伸，忍字当头，你熬过了所有艰难。'],
+  '豪迈':['你一生豪气干云，行事痛快，恩怨分明。','快意恩仇，是你这一生的底色。']
+};
+
 function endEvalOf(){
   const g=G;
   const s=g.soul, qcn=Q_KEYS[s.quality], pw=power();
@@ -4315,195 +4759,193 @@ function endEvalOf(){
   if(g.spouse) fate.push('结缡'+g.spouse);
   if(g.children) fate.push('育子'+g.children+'人');
   const fateTxt = fate.length ? fate.join('、') : '一生漂泊，无有定所';
-
-  // 第一段：命运总评（每档多变体随机，贴合实际等级/战力/封号/宗门，避免句式雷同）
-  let artifactTxt = g.godArtifact ? `你以「${g.godArtifact}」为凭，` : '';
+  const artifactTxt = g.godArtifact ? `你以「${g.godArtifact}」为凭，` : '';
   const godPathTxt = g._selfGod ? '自创神位' : '九考全过';
-  let first;
-  if(lv>=100 && g._heroFate && g.age<=45){
-    first = `万古唯一的${qcn}，${s.name}——${g.age} 岁百级成神，战力 ${pw.toLocaleString()}。${artifactTxt}你触动了那传说中才会显现的逆天机缘，将无数人穷尽一生也走不完的神路，压缩成了短短数十载。斗罗大陆自此有了主角，而主角，就是你。`;
-  } else if(g.endTag==='神王'){
-    first = pick([
-      `万中无一的${qcn}，${s.name}觉醒的那一刻，命运便已写下结局。${godPathTxt}，百级成神，战力 ${pw.toLocaleString()}——${artifactTxt}你终登神王之位，执掌神界权柄。斗罗大陆万年的传说，皆以你为开篇。`,
-      `世人只知${s.name}是${qcn}，却不知这 ${g.age} 个春秋里，你走出了怎样一条通天之路。百级成神，${artifactTxt}登临神王——从此神界之巅，有你一席。`
-    ]);
-  } else if(g.endTag==='主神'){
-    first = pick([
-      `${qcn}${s.name}，修至百级，战力 ${pw.toLocaleString()}。${artifactTxt}你位列神界主神，坐镇中枢，俯瞰万界——下界魂师仰望的天穹，是你用 ${g.age} 年一步一步走上去的。`,
-      `神界中枢，威压众神。${s.name}以${qcn}之姿修至百级，${artifactTxt}登主神之位——${g.age} 载修行，终成一方神主。`
-    ]);
-  } else if(g.endTag==='二级神'){
-    first = pick([
-      `${qcn}${s.name}，${godPathTxt}，百级成神，战力 ${pw.toLocaleString()}。${artifactTxt}你位列神界二级神祇，于神界亦有一席之地——二级神之名，自此不朽。`,
-      `神界何其大，能留下名字的却不多。${s.name}以${qcn}之资${godPathTxt}成神，位列二级神祇——${artifactTxt}这个名字，神界会记很久。`
-    ]);
-  } else if(g.endTag==='三级神'){
-    first = pick([
-      `${qcn}${s.name}，${godPathTxt}，百级成神，战力 ${pw.toLocaleString()}。${artifactTxt}你位列神界边缘的三级神祇，神位虽微，却是凡人毕生无法企及的一步。`,
-      `从下界的尘埃，到神界的门槛——${s.name}用 ${g.age} 年走完了这步凡人做梦都不敢想的路。三级神祇，亦是神。`
-    ]);
-  } else if(g.endTag==='飞升'){
-    first = pick([
-      `${qcn}${s.name}，${godPathTxt}，百级成神，战力 ${pw.toLocaleString()}。${artifactTxt}你飞升神界，成为新晋神祇——从魂士到神祇，整整一世的跋涉，在此刻化为永恒。`,
-      `魂士起步，神祇收尾。${s.name}${godPathTxt}飞升神界——${artifactTxt}这中间的每一级魂力，都是你亲手凿出来的。`
-    ]);
-  } else if(g.endTag==='人界守护'){
-    first = pick([
-      `${qcn}${s.name}，百级成神，战力 ${pw.toLocaleString()}。${artifactTxt}你不赴神界，驻留人间，成为守护这片大陆的神祇——神界的荣光之下，你更偏爱这方烟火。`,
-      `神界在招手，你却没有走。${s.name}百级成神，${artifactTxt}留守人间——你选的不是永生，是万家灯火。`
-    ]);
-  } else if(lv>=100){
-    first = `${qcn}${s.name}，修至百级，成就神位。${g.godTitle||''}考圆满，${artifactTxt}你的传说自此刻开始。`;
-  } else if(lv>=99){
-    first = pick([
-      `99 级极限斗罗，凡人的尽头已被你走穿。${g.finalTitle?('世人皆称你「'+g.finalTitle+'」。'):''}${g.godTitle?('你继承'+g.godTitle+'之位，却终究未叩开神门——功亏一篑，亦是另一种圆满。'):'你从未获得神位传承，以凡人之躯抵达极限，本身就是最大的传说。'}`,
-      `凡人修炼，自有尽头；而你把尽头走成了自己的名字。99 级极限斗罗${g.finalTitle?('「'+g.finalTitle+'」'):''}——${g.godTitle?('与神位擦肩，功亏一篑，却也已是凡间绝响。'):'没有神位传承，你仍是古往今来最接近神的人。'}`
-    ]);
-  } else if(lv>=95){
-    first = pick([
-      `${s.name}超级斗罗，${lv} 级巅峰战力 ${pw.toLocaleString()}。${g.finalTitle?('世人皆称你「'+g.finalTitle+'」。'):''}你已跨入大陆最巅峰的极少数之列，距极限斗罗仅一步之遥，${g.org?('于'+g.org+'名震天下'):'纵横大陆，威震一方'}。`,
-      `${lv} 级超级斗罗——距极限斗罗只差半步，可这半步，多少人穷尽一生也迈不过去。${g.finalTitle?('世人皆称你「'+g.finalTitle+'」。'):''}${g.org?('于'+g.org+'，你的名字无人不晓'):'你的名字，已是大陆的传说'}。`
-    ]);
-  } else if(lv>=90){
-    first = pick([
-      `${s.name}封号，${lv} 级封号斗罗，战力 ${pw.toLocaleString()}。${g.finalTitle?('世人皆称你为「'+g.finalTitle+'」。'):''}大陆绝巅之列有你一席，${g.org?('于'+g.org+'扬名立万'):'纵横大陆，威名赫赫'}。`,
-      `${lv} 级封号斗罗——这个高度，已足以让大陆绝大多数魂师仰望一生。${g.finalTitle?('「'+g.finalTitle+'」之名'):'你的名字'}${g.org?('在'+g.org+'无人不知'):'传遍大陆'}。`,
-      `封号一出，谁与争锋。${lv} 级封号斗罗${g.finalTitle?('「'+g.finalTitle+'」'):''}，战力 ${pw.toLocaleString()}——${g.org?('于'+g.org+'名震一方'):'纵横大陆，一代传奇'}。`
-    ]);
-  } else if(lv>=80){
-    first = pick([
-      `魂斗罗，战力 ${pw.toLocaleString()}。你已能庇护一方势力，虽未封号，亦是当世豪杰——只是午夜梦回，仍会想起那座更高的山。`,
-      `${lv} 级魂斗罗，距封号只一步之遥。${g.org?('你坐镇'+g.org+'，声名日隆'):'你已是当世有数的强者'}——只是那一步，终究没能迈过去。`
-    ]);
-  } else if(lv>=70){
-    first = pick([
-      `魂圣。武魂真身一出，寻常魂师俯首。${g.youApt===89?'你本有机会问鼎魂斗罗，却终究差了一线。':'这条路你没能走到尽头，却已足够耀眼。'}`,
-      `魂圣之尊，武魂真身足以震慑一方。${g.youApt===89?'天赋本可问鼎魂斗罗，奈何时运差了一线。':'你凭这一身修为，走到了大多数人到不了的地方。'}`
-    ]);
-  } else if(lv>=60){
-    first = pick([
-      `魂帝，人中翘楚。这个境界已是绝大多数魂师毕生难以企及的高度，你的名字值得被记住。`,
-      `魂帝之境，百魂师难出其右。${s.name}这一世，无愧于这个名字。`
-    ]);
-  } else if(lv>=50){
-    first = pick([
-      `魂王，小有名气。你于佣兵与宗门间立足，刀光剑影里走过半生，也算不枉这一世。`,
-      `魂王境界，在魂师中已算翘楚。半生刀光剑影，${g.org?('在'+g.org+'也闯出了名头'):'也算闯出了一片天地'}。`
-    ]);
-  } else if(lv>=40){
-    first = pick([
-      `魂宗。一生平安，道侣在侧、儿孙绕膝——这样的人生，何尝不是圆满。`,
-      `魂宗修为，不算顶尖，却够你用一辈子把日子过安稳。`
-    ]);
-  } else if(lv>=30){
-    first = pick([
-      `魂尊。不高不低，了此余生。你说平凡是种安稳，其实也是种智慧。`,
-      `魂尊之境，不上不下。可你这一生，倒也过得安稳自在。`
-    ]);
-  } else if(lv>=20){
-    first = pick([
-      `大魂师。与大多数魂师一样，你的一生平淡而真实，像大陆上每一粒平凡的尘埃。`,
-      `大魂师，寻常魂师里的寻常人。平凡的一生，同样值得好好过完。`
-    ]);
-  } else if(lv>=10){
-    first = pick([
-      `魂师。${s.name}陪你走过了最初的修行之路，只是这条路，终究没能走得更远。`,
-      `魂师修为，初窥门径。平凡的路，平凡的人，却也是一段完整的魂师生涯。`
-    ]);
-  } else if(lv>0){
-    first = pick([
-      `魂士。${s.name}没能带你走得更远，但那些修炼的清晨与黄昏，你从未后悔。`,
-      `魂士修为，在这片大陆上不值一提。但你认真活过的每一天，都算数。`
-    ]);
-  } else if(s.xian===0){
-    first = pick([
-      `先天魂力为零，测魂师一声叹息，便定了你的一生。但魂师之外的人间烟火，你一样没少尝——这一世，是你的。`,
-      `没能觉醒魂力，你在魂师的世界里成了看客。可凡人的生活，你过得不比任何人差。`
-    ]);
-  } else {
-    first = pick([
-      `没有觉醒出像样的天赋，你平凡地过完了一生，像一滴水汇入岁月的长河。`,
-      `天赋平平，际遇平平。可这一生是你的，怎么过，都由你自己说了算。`
-    ]);
-  }
 
-  // 第二段：武魂点评（类型 × 品质，每类多变体随机，贴合原著设定）
+  // 上下文对象（评语数据函数的参数）
+  const ctx = {g, s, qcn, pw, lv, ach, fateTxt, artifactTxt, godPathTxt};
+
+  // 第一段：命运总评（数据驱动匹配）
+  const firstItem = EVAL_FIRST.find(item => item.cond(ctx));
+  const first = firstItem ? pick(firstItem.texts.map(fn => fn(ctx))) : '';
+
+  // 第二段：武魂点评（类型 × 品质）
   const typeDesc = {
-    shou: pick([
-      '兽武魂，觉醒的刹那便注定走以力证道的路，血脉里蛰伏着兽性的狂意。',
-      '兽武魂傍身，你走的是最纯粹的以力证道之路，一身血勇与野性，是刻在骨子里的。'
-    ]),
-    qi: pick([
-      '器武魂，人器合一，刚柔并济，攻守皆在一念之间。',
-      '器武魂，一器傍身，人器合一。你的路不在蛮力，而在千锤百炼后的那一击。'
-    ]),
-    zhi: pick([
-      '植物武魂，向死而生，生生不息，生机即战力。',
-      '植物武魂，生于泥土，长于天地。你把草木的一枯一荣，修成了自己的道。'
-    ])
+    shou: pick(['兽武魂，觉醒的刹那便注定走以力证道的路，血脉里蛰伏着兽性的狂意。','兽武魂傍身，你走的是最纯粹的以力证道之路，一身血勇与野性，是刻在骨子里的。']),
+    qi: pick(['器武魂，人器合一，刚柔并济，攻守皆在一念之间。','器武魂，一器傍身，人器合一。你的路不在蛮力，而在千锤百炼后的那一击。']),
+    zhi: pick(['植物武魂，向死而生，生生不息，生机即战力。','植物武魂，生于泥土，长于天地。你把草木的一枯一荣，修成了自己的道。'])
   };
   const qDesc = {
-    fei: pick([
-      '废武魂，修炼如逆水行舟，旁人十年之功，你要付出一生。可武魂虽废，你的狠劲却不曾废过。',
-      '废武魂起步，注定要比旁人多吃百倍的苦。可你偏不信命，硬生生把绝路走成了自己的路。'
-    ]),
-    pu: pick([
-      '普通武魂，资质平平。可斗罗大陆从不问武魂贵贱——平凡之魂，也能走出一段不凡的路。',
-      '普通武魂，不起眼的天赋，却是一段真实人生的起点。平凡之魂，亦有平凡人的滚烫。'
-    ]),
-    you: pick([
-      '优良武魂，资质上佳，是大多数魂师仰望的存在，宗门愿为你倾注资源。',
-      '优良武魂，资质出挑。你的名字，本该写在宗门重点培养的名册上。'
-    ]),
-    ding: pick([
-      '顶级武魂，天生王者之姿，血脉里流淌着强者的印记，一呼一吸间皆是天骄气象。',
-      '顶级武魂，天骄之姿。从觉醒那一刻起，强者之路就已在脚下铺开。'
-    ]),
-    super: pick([
-      '超级武魂，绝世罕见。这种层次的天赋，整个大陆都屈指可数——你生来就注定要搅动风云。',
-      '超级武魂，凌驾顶级之上。血脉之强横，连武魂殿的史官都要为你多落几笔。'
-    ]),
-    shen: pick([
-      '神级武魂，万中无一。你，本就是为了成神而生——这是武魂殿史册上都要浓墨重彩的一笔。',
-      '神级武魂，天生不凡。这世上能与你比肩的觉醒者，一个时代也出不了几个。'
-    ])
+    fei: pick(['废武魂，修炼如逆水行舟，旁人十年之功，你要付出一生。可武魂虽废，你的狠劲却不曾废过。','废武魂起步，注定要比旁人多吃百倍的苦。可你偏不信命，硬生生把绝路走成了自己的路。']),
+    pu: pick(['普通武魂，资质平平。可斗罗大陆从不问武魂贵贱——平凡之魂，也能走出一段不凡的路。','普通武魂，不起眼的天赋，却是一段真实人生的起点。平凡之魂，亦有平凡人的滚烫。']),
+    you: pick(['优良武魂，资质上佳，是大多数魂师仰望的存在，宗门愿为你倾注资源。','优良武魂，资质出挑。你的名字，本该写在宗门重点培养的名册上。']),
+    ding: pick(['顶级武魂，天生王者之姿，血脉里流淌着强者的印记，一呼一吸间皆是天骄气象。','顶级武魂，天骄之姿。从觉醒那一刻起，强者之路就已在脚下铺开。']),
+    super: pick(['超级武魂，绝世罕见。这种层次的天赋，整个大陆都屈指可数——你生来就注定要搅动风云。','超级武魂，凌驾顶级之上。血脉之强横，连武魂殿的史官都要为你多落几笔。']),
+    shen: pick(['神级武魂，万中无一。你，本就是为了成神而生——这是武魂殿史册上都要浓墨重彩的一笔。','神级武魂，天生不凡。这世上能与你比肩的觉醒者，一个时代也出不了几个。'])
   };
   let second = `${typeDesc[s.cat]||''}${qDesc[s.quality]||''}`;
   if(ach.length) second += ` 一生留名：${ach.join('、')}。`;
   if(s.xian===20) second += ' 先天二十级魂力，万古无一！';
   if(g.dual) second += ` 身怀双生武魂 ${g.dual.name}，当世罕有。`;
 
-  // 第三段：际遇 + 享年 + 结语（每档多变体随机）
-  // DL_RS_4.168：成神者不显示享年，改为神寿无尽
-  let third = `一生际遇：${fateTxt}。` + (lv >= 100 ? '神寿无尽，与天地同存。' : `享年 ${g.age} 岁。`);
-  if(lv>=100 && g._heroFate && g.age<=45){ third += ' 你的故事，后来被写成了传说——大地上人人传颂的名字，便叫主角。'; }
-  else if(g.endTag==='神王') third += pick([' 万古一瞬，神王不朽。',' 神界高台，从此有你一席；万古岁月，为你作证。']);
-  else if(g.endTag==='主神') third += pick([' 主神之名，永镇神界。',' 坐镇神界中枢、威压八方的日子，才刚刚开始。']);
-  else if(g.endTag==='二级神') third += pick([' 二级神祇，神界亦传其名。',' 神界千神，你不再是无名之辈。']);
-  else if(g.endTag==='三级神') third += pick([' 神界边缘，亦是神。',' 神位虽微，亦是凡人不可企及的永恒。']);
-  else if(g.endTag==='飞升') third += pick([' 从此，神界多了一段传说。',' 飞升那一刻，下界便只留你的名字。']);
-  else if(g.endTag==='人界守护') third += pick([' 人间守护神，守的是万家灯火。',' 你没有去神界，人间却从此有了你的庇佑。']);
-  else if(lv>=95) third += pick([' 超级斗罗，半步之遥便是神门。',' 极限斗罗的门槛，你已摸到了边。']);
-  else if(lv>=90) third += pick([' 封号之尊，足以名垂青史。',' 封号之名，百年之后依然有人传颂。',' 魂师界的史册，有你重重的一笔。']);
-  else if(lv>=70) third += pick([' 你的名字，曾照亮过一方天空。',' 一方之地，曾因你而扬名。']);
-  else if(lv>=40) third += pick([' 平凡也好，辉煌也罢，这一世终是落幕。',' 岁月不居，这一世就此落下帷幕。']);
-  else third += pick([' 历史的尘埃里，也有你的一粒。',' 滚滚红尘，你曾是其中一粒。']);
+  // 第三段：魂环点评（本局专属，统计魂环配置）
+  const rings = g.rings || [];
+  let ringEval = '';
+  if(rings.length > 0) {
+    const totalYear = rings.reduce((s,r)=>s+(r.y||0),0);
+    const maxRing = rings.reduce((m,r)=>(r.y||0)>(m.y||0)?r:m, rings[0]);
+    const redCount = rings.filter(r=>r.y>=100000).length;
+    const blackCount = rings.filter(r=>r.y>=10000 && r.y<100000).length;
+    const purpleCount = rings.filter(r=>r.y>=1000 && r.y<10000).length;
+    
+    ringEval = `魂环配置：${rings.length}环，总年限 ${totalYear.toLocaleString()} 年。`;
+    if(redCount > 0) ringEval += ` 其中十万年魂环 ${redCount} 枚`;
+    if(blackCount > 0) ringEval += `，万年魂环 ${blackCount} 枚`;
+    if(purpleCount > 0) ringEval += `，千年魂环 ${purpleCount} 枚`;
+    ringEval += '。';
+    
+    // 魂环评价
+    if(redCount >= 3) {
+      ringEval += pick([
+        ` 最高年限魂环为 ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）——这等魂环配置，放眼整个大陆也是数一数二的存在。`,
+        ` ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）为你最强魂环，如此豪华的魂环阵容，足以让任何魂师艳羡。`
+      ]);
+    } else if(redCount >= 1) {
+      ringEval += pick([
+        ` 最高年限魂环为 ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）——十万年魂环在手，已是一方强者的标配。`,
+        ` ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）是你最耀眼的魂环，十万年魂兽的力量，为你所用。`
+      ]);
+    } else if(blackCount >= 1) {
+      ringEval += pick([
+        ` 最高年限魂环为 ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）——万年魂环，已是魂师界的中坚力量。`,
+        ` ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）是你最强的魂环，万年修为，不容小觑。`
+      ]);
+    } else {
+      ringEval += pick([
+        ` 最高年限魂环为 ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）——虽非顶级，却也是你一步一个脚印猎来的。`,
+        ` ${maxRing.beast}（${(maxRing.y||0).toLocaleString()}年）是你最强的魂环，每一枚都来之不易。`
+      ]);
+    }
+  } else {
+    ringEval = pick([
+      '一生未能猎取一枚魂环，魂力之路终究停在了起点。',
+      '无魂环傍身，这一世的修行，终究是差了些机缘。'
+    ]);
+  }
 
-  // DL_RS_4.151：性格评语（一句性格写照，贴合人设）
-  const PERS_EVAL = {
-    '勇猛':['你性烈如火，一生好勇斗狠，却也从不后悔。','热血铸就的这一生，每一步都走得干脆利落。'],
-    '沉稳':['你一生谨慎持重，稳字当头，终究稳出了自己的道。','不急不躁，步步为营，是你这一生的注脚。'],
-    '机敏':['你八面玲珑，善察人心，一生少走弯路。','机敏圆滑，却也是你在这乱世活得最久的本事。'],
-    '隐忍':['你隐忍半生，厚积薄发，终得所愿。','能屈能伸，忍字当头，你熬过了所有艰难。'],
-    '豪迈':['你一生豪气干云，行事痛快，恩怨分明。','快意恩仇，是你这一生的底色。']
-  };
+  // 第四段：势力关系（本局专属，宗门/师徒/道侣/子嗣）
+  let relationEval = '';
+  const relations = [];
+  if(g.org) relations.push(`宗门${g.org}`);
+  if(g.master) relations.push(`恩师${g.master}`);
+  if(g.spouse) relations.push(`道侣${g.spouse}`);
+  if(g.children) relations.push(`子嗣${g.children}人`);
+  
+  if(relations.length > 0) {
+    relationEval = `一生羁绊：${relations.join('、')}。`;
+    // 宗门评价
+    if(g.org) {
+      relationEval += pick([
+        ` 你于${g.org}中${lv>=90?'位高权重':'崭露头角'}，宗门因你而${lv>=90?'声名远播':'添了几分光彩'}。`,
+        ` ${g.org}是你一生的归宿，宗门的栽培与你的努力，成就了今天的你。`
+      ]);
+    }
+    // 师徒评价
+    if(g.master) {
+      relationEval += pick([
+        ` 恩师${g.master}的教诲，你铭记一生，师徒之情，亦是修行路上的一盏明灯。`,
+        ` 师承${g.master}，名师出高徒，你的成就里，有师父的一半功劳。`
+      ]);
+    }
+    // 道侣评价
+    if(g.spouse) {
+      relationEval += pick([
+        ` 与${g.spouse}结为道侣，修行路上有人相伴，这是多少魂师求而不得的福分。`,
+        ` ${g.spouse}陪你走过了这一生的风风雨雨，道侣同心，其利断金。`
+      ]);
+    }
+    // 子嗣评价
+    if(g.children) {
+      relationEval += pick([
+        ` 育有${g.children}个子嗣，血脉得以延续，你的传说，将由后代继续书写。`,
+        ` ${g.children}个孩子承继了你的血脉，虎父无犬子，他们的未来，不可限量。`
+      ]);
+    }
+  } else {
+    relationEval = pick([
+      '一生无牵无挂，独来独往，虽是逍遥，却也少了几分人间烟火。',
+      '没有宗门庇护，没有恩师指点，没有道侣相伴——你凭一己之力，走到了今天。'
+    ]);
+  }
+
+  // 第五段：特殊经历（本局专属，双生武魂/神位/神器/九考等）
+  let specialEval = '';
+  const specials = [];
+  if(g.dual) specials.push('双生武魂');
+  if(g._selfGod) specials.push('自创神位');
+  // DL_RS_4.170：神考名称动态化——根据实际继承的神位显示，不再硬编码"海神九考"
+  const _shenkaoName = (g.godTitle === '海神') ? '海神九考' : (g.godTitle ? g.godTitle + '神考' : '神考');
+  if(g.shenkaoN >= 9) specials.push(_shenkaoName + '全过');
+  else if(g.shenkaoN > 0) specials.push(_shenkaoName + `通过${g.shenkaoN}考`);
+  if(g.godArtifact) specials.push(`神器${g.godArtifact}`);
+  if(g.godTitle) specials.push(`继承${g.godTitle}神位`);
+  if(g.title && lv>=90) specials.push(`封号${g.title}`);
+  
+  if(specials.length > 0) {
+    specialEval = `传奇经历：${specials.join('、')}。`;
+    // 特殊经历点评
+    if(g._selfGod) {
+      specialEval += pick([
+        ' 自创神位，前无古人——你走出了一条属于自己的神路，这份魄力，万古无一。',
+        ' 不依附任何旧神，以自身之力凝聚神位，你的名字，将被神界永远铭记。'
+      ]);
+    }
+    if(g.shenkaoN >= 9) {
+      // DL_RS_4.170：神考点评动态化——根据实际继承的神位显示
+      const _skName = (g.godTitle === '海神') ? '海神九考' : (g.godTitle ? g.godTitle + '神考' : '神考');
+      specialEval += pick([
+        ' ' + _skName + '，每一考都是生死考验，你全部通过，这份毅力，非常人所能及。',
+        ' 神考全过，' + (g.godTitle || '神祇') + '的认可，是你用汗水与鲜血换来的无上荣耀。'
+      ]);
+    }
+    if(g.dual) {
+      specialEval += pick([
+        ` 双生武魂${s.name}与${g.dual.name}，两大武魂相辅相成，这是上天赐予你的最大机缘。`,
+        ` 身怀双生武魂，这是万中无一的天赋，你的上限，远比常人想象的要高。`
+      ]);
+    }
+    if(g.godArtifact) {
+      specialEval += pick([
+        ` ${g.godArtifact}认你为主，神器有灵，择主而事——这是命运的选择。`,
+        ` 手持${g.godArtifact}，神器的力量与你的修为融为一体，如虎添翼。`
+      ]);
+    }
+  } else {
+    specialEval = pick([
+      '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
+      '没有双生武魂，没有神位传承，没有神器傍身——你凭最普通的天赋，走出了不普通的一生。'
+    ]);
+  }
+
+  // 第六段：际遇 + 享年 + 结语（数据驱动匹配）
+  let third = `一生际遇：${fateTxt}。` + (lv >= 100 ? '神寿无尽，与天地同存。' : `享年 ${g.age} 岁。`);
+  const thirdItem = EVAL_THIRD.find(item => item.cond(ctx));
+  if(thirdItem) third += pick(thirdItem.texts);
+
+  // 性格评语
   const personaTxt = PERS_EVAL[g.personality] ? pick(PERS_EVAL[g.personality]) : '';
-  return `<div class="end-eval-p">${first}</div><div class="end-eval-p">${second}</div><div class="end-eval-p">${third}</div>${personaTxt?`<div class="end-eval-p">${personaTxt}</div>`:''}`;
+
+  return `<div class="end-eval-p">${first}</div><div class="end-eval-p">${second}</div><div class="end-eval-p">${ringEval}</div><div class="end-eval-p">${relationEval}</div><div class="end-eval-p">${specialEval}</div><div class="end-eval-p">${third}</div>${personaTxt?`<div class="end-eval-p">${personaTxt}</div>`:''}`;
 }
 
 function finishLife(force){
   const g=G;
   g.alive = false;
+  // DL_RS_4.163：结束游戏时立即关闭自动模式，防止 setInterval 在 show('screen-end') 后继续触发 renderGame 覆盖结局页面
+  if(AUTO && AUTO.on){
+    AUTO.on=false;
+    const _ba=$('btnAuto'); if(_ba){ _ba.textContent='自动'; _ba.classList.remove('auto-on'); }
+  }
   g.endTag = force || ''; // 成神档位（神王/主神/飞升/人界守护），供评语与后续判定使用
   const rew = lundianReward(); // DL_RS_4.30：轮回点按本局评分奖励（凡人保底 1 点，成神 10 点）
   META.lundian = (META.lundian||0) + rew;
@@ -4532,7 +4974,7 @@ function finishLife(force){
   if(g.soul && g.soul.xian>=10) _rec.xianMan = true;
   if(g.shenkaoDone) _rec.shenkao = true;
   if(g.spouse) _rec.spouse = true;
-  if(g.children && g.children.length>=1) _rec.child = true;
+  if(g.children && g.children>=1) _rec.child = true;
   if(g.godTitle && g.god){ if(g.god.tier===4) _rec.shenwang=true; else if(g.god.tier===3) _rec.yiji=true; else if(g.god.tier===2) _rec.erji=true; }
   const _cap2 = g.lifeCap || 0;
   if(_cap2>=150) _rec.longLife = true;
@@ -4619,7 +5061,7 @@ function finishLife(force){
   sum += `<div class="es-row"><b>武魂</b>${s.name}（${qw}）</div>`;
   sum += `<div class="es-row"><b>先天魂力</b>${s.xian}级</div>`;
   if(g.dual) sum += `<div class="es-row"><b>副武魂</b>${g.dual.name}（${Q_KEYS[g.dual.quality]}）</div>`;
-  sum += `<div class="es-row"><b>魂环</b><span class="es-rings">${g.rings.map(ringTag).join('')||'<span class="muted">无</span>'}</span></div>`;
+  sum += `<div class="es-row"><b>魂环</b><span class="es-rings">${(g.rings||[]).map(ringTag).join('')||'<span class="muted">无</span>'}</span></div>`;
   if(g.dual && g.dualRings && g.dualRings.length) sum += `<div class="es-row"><b>副环</b><span class="es-rings">${g.dualRings.map(ringTag).join('')}</span></div>`;
   if(g.bones && g.bones.length) sum += `<div class="es-row"><b>魂骨</b><span class="es-rings">${g.bones.map(b=>{const by=b.grade==='十万年'?100000:b.grade==='万年'?10000:b.grade==='千年'?1000:100; return `<span class="ering ${ringLevel(by).key}">${b.grade}·${b.slot}${b.skill?('·'+b.skill):''}</span>`;}).join('')}</span></div>`;
   if(g.extraBone) sum += `<div class="es-row"><b>外附魂骨</b><span class="es-rings"><span class="ering purple">${g.extraBone.name}（${g.extraBone.tier||0}阶${g.extraBone.grade?('·'+g.extraBone.grade):''}）</span></span></div>`;
@@ -4627,7 +5069,7 @@ function finishLife(force){
   // 区块二：最终属性（战斗四维高亮 + 战力）
   sum += `<div class="es-block"><div class="es-row"><b>最终属性</b></div><div class="es-attrs">`;
   [['体质',''],['力量','fight'],['敏捷','fight'],['精神力','psi'],['悟性',''],['家境',''],['天命','']].forEach(([k,cls])=>{
-    sum += `<span class="es-attr ${cls}">${k}<b> ${Math.floor(g.a[k])}</b></span>`;
+    sum += `<span class="es-attr ${cls}">${k}<b> ${Math.floor((g.a||{})[k]||0)}</b></span>`;
   });
   sum += `<span class="es-attr fight">战力<b> ${power()}</b></span>`;
   sum += `</div></div>`;
@@ -4650,44 +5092,142 @@ $('btnSaveArchive').onclick = ()=>{ saveLifeArchive(); };
 /* 查看本局历程：按年龄时间线展示本局全部日志（每次打开都渲染最新 G.log，杜绝旧局残留）；
    DL_RS_4.17：每条日志以金色「第X岁」标注年份，让哪一年发生了什么事一目了然 */
 let _lifePage = 0; // DL_RS_4.156：历程分页页码（0=最新一页），支持翻看更早记录
+let _lifeFilter = 'all'; // 历程筛选：all/common/uncommon/rare/epic/legend/mythic/event/action
+let _lifeSearch = ''; // 历程搜索关键字
 function renderLifeLog(box){
   const log = G.log || [];
   if(log.length===0){ box.innerHTML='<div class="entry note">这一世平淡如水，没有留下任何值得书写的事迹。</div>'; return; }
-  // DL_RS_4.156：长局日志分页显示（每页 300 条），可翻看更早记录（替代原 DL_RS_4.84 仅显示最近 300 条）
-  const PER=300, pages = Math.max(1, Math.ceil(log.length/PER));
-  if(_lifePage<0) _lifePage=0; if(_lifePage>pages-1) _lifePage=pages-1;
-  const end = log.length - _lifePage*PER;
-  const start = Math.max(0, end-PER);
-  const show = log.slice(start, end);
-  let html = `<h3 style="margin:0 0 10px">本局历程（${log.length} 条 · 第 ${_lifePage+1}/${pages} 页）</h3>`;
-  show.forEach(l=>{
-    // DL_RS_4.87：日志文本若已内嵌「第X岁·」（如"这一年风平浪静"类）则不再重复加年份前缀，避免"第157岁 第157岁·"
-    const hasAge = /^第\s*\d+\s*岁/.test(l.text||'');
-    const ageTxt = (!hasAge && l.age!=null) ? `<span class="ly">第${l.age}岁</span>` : '';
-    html += `<div class="entry ${l.cls||''}">${ageTxt} ${l.text}</div>`;
-  });
-  if(pages>1){
-    html += `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">`;
-    html += `<button class="btn" id="lgOlder" ${_lifePage>=pages-1?'disabled':''}>‹ 更早记录</button>`;
-    html += `<span class="muted" style="font-size:12px">第 ${_lifePage+1}/${pages} 页 · 每页 ${PER} 条</span>`;
-    html += `<button class="btn" id="lgNewer" ${_lifePage<=0?'disabled':''}>更新记录 ›</button>`;
-    html += `</div>`;
+  // DL_RS_4.184：搜索框与日志列表分离，搜索时只更新日志列表，不重新创建搜索框，避免打断输入法
+  const logListEl = box.querySelector('#logListContainer');
+  if(logListEl){
+    // 搜索框已存在，只更新日志列表
+    updateLogList(box);
+    return;
   }
+  // 第一次渲染：创建完整面板（包括搜索框和筛选按钮）
+  const filters = [
+    {k:'all', n:'全部'}, {k:'event', n:'事件'}, {k:'action', n:'行动'},
+    {k:'common', n:'白'}, {k:'uncommon', n:'黄'}, {k:'rare', n:'紫'},
+    {k:'epic', n:'黑'}, {k:'legend', n:'红'}, {k:'mythic', n:'金'}
+  ];
+  let html = `<h3 id="logTitle" style="margin:0 0 10px">本局历程</h3>`;
+  html += `<div class="log-filter-bar">`;
+  filters.forEach(f=>{
+    const active = _lifeFilter===f.k ? 'active' : '';
+    const qcls = f.k.startsWith('ev-') || ['common','uncommon','rare','epic','legend','mythic'].includes(f.k) ? 'q-'+f.k : '';
+    html += `<button class="log-filter-btn ${qcls} ${active}" data-filter="${f.k}">${f.n}</button>`;
+  });
+  html += `<input class="log-search-input" id="logSearchInput" placeholder="搜索关键字..." value="">`;
+  html += `<span class="log-filter-count" id="logCount"></span>`;
+  html += `</div>`;
+  html += `<div id="logListContainer"></div>`;
+  html += `<div id="logPager"></div>`;
   box.innerHTML = html;
-  const oldBtn = box.querySelector('#lgOlder'), newBtn = box.querySelector('#lgNewer');
-  if(oldBtn) oldBtn.onclick = ()=>{ _lifePage = Math.min(pages-1, _lifePage+1); renderLifeLog(box); };
-  if(newBtn) newBtn.onclick = ()=>{ _lifePage = Math.max(0, _lifePage-1); renderLifeLog(box); };
+  // 绑定筛选按钮
+  box.querySelectorAll('.log-filter-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      _lifeFilter = btn.dataset.filter;
+      _lifePage = 0;
+      // 更新筛选按钮状态
+      box.querySelectorAll('.log-filter-btn').forEach(b=>{
+        b.classList.toggle('active', b.dataset.filter === _lifeFilter);
+      });
+      updateLogList(box);
+    };
+  });
+  // 绑定搜索框（防抖机制，不重新创建搜索框）
+  const searchInput = box.querySelector('#logSearchInput');
+  if(searchInput){
+    let searchTimer = null;
+    searchInput.oninput = (e)=>{
+      if(searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(()=>{
+        _lifeSearch = e.target.value;
+        _lifePage = 0;
+        updateLogList(box);
+      }, 300);
+    };
+    searchInput.oncompositionend = (e)=>{
+      if(searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(()=>{
+        _lifeSearch = e.target.value;
+        _lifePage = 0;
+        updateLogList(box);
+      }, 300);
+    };
+  }
+  updateLogList(box);
+}
+// DL_RS_4.184：只更新日志列表，不重新创建搜索框
+function updateLogList(box){
+  const log = G.log || [];
+  const matchFilter = (l)=>{
+    if(_lifeFilter==='all') return true;
+    if(_lifeFilter==='event') return (l.cls||'').startsWith('ev-');
+    if(_lifeFilter==='action') return !(l.cls||'').startsWith('ev-');
+    return (l.cls||'') === 'ev-'+_lifeFilter;
+  };
+  const matchSearch = (l)=>{
+    if(!_lifeSearch) return true;
+    return (l.text||'').toLowerCase().includes(_lifeSearch.toLowerCase());
+  };
+  const filtered = log.filter(l=> matchFilter(l) && matchSearch(l));
+  const PER=300, pages = Math.max(1, Math.ceil(filtered.length/PER));
+  if(_lifePage<0) _lifePage=0; if(_lifePage>pages-1) _lifePage=pages-1;
+  const end = filtered.length - _lifePage*PER;
+  const start = Math.max(0, end-PER);
+  const show = filtered.slice(start, end);
+  // 更新标题
+  const titleEl = box.querySelector('#logTitle');
+  if(titleEl) titleEl.textContent = `本局历程（共 ${log.length} 条，筛选后 ${filtered.length} 条）`;
+  // 更新计数
+  const countEl = box.querySelector('#logCount');
+  if(countEl) countEl.textContent = `显示 ${show.length}/${filtered.length} 条`;
+  // 更新日志列表
+  const listEl = box.querySelector('#logListContainer');
+  if(listEl){
+    if(show.length===0){
+      listEl.innerHTML = '<div class="entry note">没有符合筛选条件的记录。</div>';
+    } else {
+      let html = '';
+      show.forEach(l=>{
+        const hasAge = /^第\s*\d+\s*岁/.test(l.text||'');
+        const ageTxt = (!hasAge && l.age!=null) ? `<span class="ly">第${l.age}岁</span>` : '';
+        html += `<div class="entry ${l.cls||''}">${ageTxt} ${l.text}</div>`;
+      });
+      listEl.innerHTML = html;
+    }
+  }
+  // 更新分页
+  const pagerEl = box.querySelector('#logPager');
+  if(pagerEl){
+    if(pages>1){
+      pagerEl.innerHTML = `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="lgOlder" ${_lifePage>=pages-1?'disabled':''}>‹ 更早记录</button>
+        <span class="muted" style="font-size:12px">第 ${_lifePage+1}/${pages} 页 · 每页 ${PER} 条</span>
+        <button class="btn" id="lgNewer" ${_lifePage<=0?'disabled':''}>更新记录 ›</button>
+        </div>`;
+      const oldBtn = pagerEl.querySelector('#lgOlder'), newBtn = pagerEl.querySelector('#lgNewer');
+      if(oldBtn) oldBtn.onclick = ()=>{ _lifePage = Math.min(pages-1, _lifePage+1); updateLogList(box); };
+      if(newBtn) newBtn.onclick = ()=>{ _lifePage = Math.max(0, _lifePage-1); updateLogList(box); };
+    } else {
+      pagerEl.innerHTML = '';
+    }
+  }
 }
 $('btnLifeLog').onclick = ()=>{
   const box = $('endLife');
   if(box.style.display !== 'none'){ box.style.display='none'; box.innerHTML=''; return; }
   _lifePage = 0; // DL_RS_4.156：每次打开历程从最新一页开始
+  _lifeFilter = 'all'; // 每次打开重置筛选
+  _lifeSearch = ''; // 每次打开重置搜索
   renderLifeLog(box);
   box.style.display='block';
 };
 function startNewLife(){
   GIFT = {wuQ:null, fate:null, evQ:null}; // DL_RS_4.116：每局重新配置来世天赋
   G = rollAttrs();
+  _prevAttrs = null; // 重置属性高亮对比基准（避免上一局属性影响新局高亮）
   // DL_RS_4.116：命格抽取延后至 btnAccept——来世天赋·指定命格需在投胎页配置完成后生效
   renderRoll();
   show('screen-roll');
@@ -4812,7 +5352,7 @@ let EVENTS = [
   {band:1, q:'legend', minAge:25, name:'神兽认主', syn:{cat:'shou',catMult:1.25}, text:'一头传说中的神兽幼崽主动亲近你，愿与你缔结契约。', once:true, req:{lv:40},
    opts:[{label:'缔结契约', need:{attr:{精神力:40}}, eff:{力量:14, 敏捷:10, 体质:8, 精神力:10, 声望:20}, evSet:'shenshou'}, {label:'婉拒', eff:{}}]},
   {band:2, q:'legend', minAge:50, name:'十万年魂骨', syn:{cat:'qi',catMult:1.2}, text:'星斗大森林之底，一块十万年魂骨散发出惊天气息。', once:true, req:{lv:60},
-   opts:[{label:'融合魂骨', need:{attr:{体质:40}}, roll:{chance:0.5, extra:0.1, succ:{力量:20, 体质:15, 敏捷:10, 精神力:10}, succText:'十万年魂骨融入你身，战力惊天！', fail:{体质:-25}, failText:'魂骨凶性难驯，你重伤垂死。', death:0.3, deathText:'被十万年魂骨吞噬'}}, {label:'放弃', eff:{}}]},
+   opts:[{label:'融合魂骨', need:{attr:{体质:40}}, bone:'十万年', roll:{chance:0.5, extra:0.1, succ:{力量:20, 体质:15, 敏捷:10, 精神力:10}, succText:'十万年魂骨融入你身，战力惊天！', fail:{体质:-25}, failText:'魂骨凶性难驯，你重伤垂死。', death:0.3, deathText:'被十万年魂骨吞噬'}}, {label:'放弃', eff:{}}]},
   /* ==== 90-99级后期事件池（DL_RS_4.174：补后期内容短板，封号历练/神界感应/极限争锋） ==== */
   /* 封号斗罗历练（90-94级） */
   {band:3, q:'epic', minAge:60, name:'封号游历', text:'你已晋封号斗罗，大陆之上再难逢敌手。你决定游历大陆，见识更广阔的天地。', once:true, req:{lv:[90,94]},
@@ -4839,9 +5379,9 @@ let EVENTS = [
   {band:2, q:'epic', minAge:40, name:'大赛报名', text:'全大陆高级魂师学院精英大赛开幕！各大学院与宗门纷纷遣人参赛，这是扬名立万的最佳机会。', once:true, chainId:'dasai', chainStart:true, step:'ds1', req:{lv:[40,65], xianMin:1}, w:0.3,
    opts:[{label:'报名参赛', need:{attr:{力量:25}}, eff:{声望:5}, evSet:'dasai_join'}, {label:'专注修炼', eff:{悟性:4}}]},
   {band:2, q:'epic', name:'预选赛', text:'预选赛开打！三轮循环赛，每场都是硬仗，胜两场即可晋级。', chainId:'dasai', step:'ds2', req:{ev:'dasai_join'},
-   opts:[{label:'全力出战', need:{attr:{力量:30, 体质:25}}, roll:{chance:0.55, extra:0.05, succ:{声望:12, 力量:5, 金魂币:200}, succText:'三战两胜，你顺利晋级！', fail:{体质:-8}, failText:'强敌环伺，你未能出线。', death:0.03, deathText:'殒命于预选赛擂台'}}, {label:'稳扎稳打', need:{attr:{精神力:25}}, roll:{chance:0.65, extra:0.03, succ:{声望:8, 悟性:4, 金魂币:100}, succText:'你以巧取胜，稳步晋级。', fail:{体质:-4}, failText:'实力不济，遗憾出局。'}}]},
+   opts:[{label:'全力出战', need:{attr:{力量:30, 体质:25}}, roll:{chance:0.55, extra:0.05, succ:{声望:12, 力量:5, 金魂币:200}, succText:'三战两胜，你顺利晋级！', fail:{体质:-8, evClear:'dasai_join'}, failText:'强敌环伺，你未能出线，大赛之旅就此结束。', death:0.03, deathText:'殒命于预选赛擂台'}}, {label:'稳扎稳打', need:{attr:{精神力:25}}, roll:{chance:0.65, extra:0.03, succ:{声望:8, 悟性:4, 金魂币:100}, succText:'你以巧取胜，稳步晋级。', fail:{体质:-4, evClear:'dasai_join'}, failText:'实力不济，遗憾出局，大赛之旅就此结束。'}}]},
   {band:2, q:'legend', name:'晋级赛', text:'晋级赛更加惨烈，五轮单败淘汰，每一场都不容有失。强者如云，你能走多远？', chainId:'dasai', step:'ds3', req:{ev:'dasai_join'},
-   opts:[{label:'血战到底', need:{attr:{力量:40, 体质:35}}, roll:{chance:0.4, extra:0.08, succ:{声望:20, 力量:8, 金魂币:500}, succText:'你连克强敌，杀入决赛！', fail:{体质:-15}, failText:'你倒在了晋级赛的路上，虽败犹荣。', death:0.06, deathText:'殒命于晋级赛死斗'}}, {label:'以智取胜', need:{attr:{精神力:35, 悟性:35}}, roll:{chance:0.5, extra:0.05, succ:{声望:15, 悟性:6, 金魂币:300}, succText:'你战术精妙，晋级决赛！', fail:{体质:-10}, failText:'对手实力碾压，你止步半决赛。'}}]},
+   opts:[{label:'血战到底', need:{attr:{力量:40, 体质:35}}, roll:{chance:0.4, extra:0.08, succ:{声望:20, 力量:8, 金魂币:500}, succText:'你连克强敌，杀入决赛！', fail:{体质:-15, evClear:'dasai_join'}, failText:'你倒在了晋级赛的路上，虽败犹荣，大赛之旅就此结束。', death:0.06, deathText:'殒命于晋级赛死斗'}}, {label:'以智取胜', need:{attr:{精神力:35, 悟性:35}}, roll:{chance:0.5, extra:0.05, succ:{声望:15, 悟性:6, 金魂币:300}, succText:'你战术精妙，晋级决赛！', fail:{体质:-10, evClear:'dasai_join'}, failText:'对手实力碾压，你止步半决赛，大赛之旅就此结束。'}}]},
   {band:2, q:'mythic', name:'决赛之巅', text:'决赛！全大陆的目光都汇聚于此。冠军将获得无上荣耀与丰厚奖励，名垂青史！', chainId:'dasai', step:'ds4', req:{ev:'dasai_join'},
    opts:[{label:'争夺冠军', need:{attr:{力量:50, 体质:45, 精神力:40}}, roll:{chance:0.3, extra:0.1, succ:{声望:40, 力量:12, 体质:8, 精神力:8, 金魂币:1000, 天命:5}, succText:'你力压群雄，夺得冠军！全大陆高呼你的名字！', fail:{体质:-20}, failText:'你与冠军失之交臂，获得亚军。', death:0.08, deathText:'殒命于决赛之巅'}}, {label:'保季军', need:{attr:{力量:40}}, roll:{chance:0.6, extra:0.05, succ:{声望:20, 力量:5, 金魂币:400}, succText:'你稳扎稳打，获得季军。', fail:{体质:-8}, failText:'你未能登上领奖台。'}}]},
   /* ==== 事件链后续环节（仅由链驱动，强制出现） ==== */
@@ -4919,7 +5459,7 @@ let EVENTS = [
    opts:[{label:'借势扬名', need:{attr:{天命:20}}, eff:{声望:15, 天命:5}}, {label:'低调潜修', eff:{悟性:8}}]},
   /* 紫 · 中年 / 老年 */
   {band:2, q:'epic', minAge:47, name:'万年魂骨认主', syn:{cat:'qi',catMult:1.2}, text:'拍卖会上，一块万年魂骨竟主动与你产生共鸣。', once:true,
-   opts:[{label:'倾尽家财拍下', need:{money:1500}, eff:{金魂币:-1500, 力量:12, 体质:8}}, {label:'忍痛放弃', eff:{悟性:4}}]},
+   opts:[{label:'倾尽家财拍下', need:{money:1500}, bone:'万年', eff:{金魂币:-1500, 力量:12, 体质:8}}, {label:'忍痛放弃', eff:{悟性:4}}]},
   {band:3, q:'epic', minAge:72, name:'武道巅峰', text:'你将毕生所学融会贯通，欲创出独属于自己的绝学。', once:true,
    opts:[{label:'闭关创法', need:{attr:{力量:60}}, evAdd:{flag:'master', eff:{力量:6}, txt:'你融入了师门绝学，毕生所学更上层楼'}, roll:{chance:0.5, extra:0.05, succ:{力量:14, 悟性:8}, succText:'绝学大成，你跻身当世武学宗师之列！', fail:{体质:-8}, failText:'气血已衰，闭关无果。'}}, {label:'广传门人', eff:{声望:12, 悟性:6}}]},
   /* 金 */
@@ -4931,7 +5471,7 @@ let EVENTS = [
   /* 白 · 幼年 / 青年 */
   {band:0, q:'uncommon', minAge:7, name:'猎魂森林初见', syn:{cat:'shou',catMult:1.25}, text:'长辈带你去猎魂森林外围见识世面，一路指点你辨认魂兽的习性。',
    opts:[{label:'认真聆听', need:{attr:{悟性:10}}, eff:{悟性:3}}, {label:'跃跃欲试', eff:{敏捷:2}}]},
-  {band:1, q:'uncommon', minAge:16, name:'史莱克考核', text:'史莱克学院在附近设点招生，传闻能通过怪物考核者皆非凡人。',
+  {band:1, q:'uncommon', minAge:16, name:'史莱克考核', text:'史莱克学院在附近设点招生，传闻能通过怪物考核者皆非凡人。', req:{notOrg:true},
    opts:[{label:'前去挑战', need:{attr:{力量:20}}, roll:{chance:0.5, extra:0.05, succ:{力量:6, 声望:8}, succText:'你竟通过了怪物的考核！', fail:{体质:-4}, failText:'被拒之门外，悻悻而归。'}}, {label:'敬而远之', eff:{悟性:2}}]},
   {band:1, q:'common', minAge:27, name:'天斗夜市', text:'天斗城夜市灯火如昼，叫卖声、喧闹声混着烤肉的焦香扑面而来，你与友人漫步其间，一时忘了江湖恩怨。',
    opts:[{label:'尽情游玩', need:{money:100},
@@ -4950,7 +5490,7 @@ let EVENTS = [
   {band:1, q:'epic', minAge:18, name:'杀戮之都', once:true, syn:{wq:'ding',wqMult:1.2}, text:'传闻杀戮之都中藏有极致机缘，却也是九死一生的修罗场。', req:{lv:30},
    opts:[{label:'闯一闯', need:{attr:{力量:30}}, roll:{chance:0.35, extra:0.1, succ:{力量:14, 敏捷:10, 声望:18}, succText:'你于杀戮场中杀出一条血路！', fail:{体质:-22}, failText:'险些殒命，狼狈逃出。', death:0.18, deathText:'殒落于杀戮之都'}}, {label:'记在心里', eff:{悟性:3}}]},
   {band:1, q:'uncommon', minAge:21, name:'魂骨黑市', syn:{cat:'qi',catMult:1.25}, text:'黑市中出现一块千年魂骨，要价不菲，真假难辨。',
-   opts:[{label:'倾囊买下', need:{money:900}, eff:{金魂币:-900, 体质:8}}, {label:'放弃', eff:{悟性:2}}]},
+   opts:[{label:'倾囊买下', need:{money:900}, bone:'千年', eff:{金魂币:-900, 体质:8}}, {label:'放弃', eff:{悟性:2}}]},
   /* 蓝 · 中年 / 老年 */
   {band:2, q:'rare', minAge:44, name:'宗门内斗', text:'你所在势力爆发内斗，各派系明争暗斗，波及到你。', req:{hasOrg:true},
    opts:[{label:'力挽狂澜', need:{attr:{力量:40}}, roll:{chance:0.45, extra:0.05, succ:{声望:12, 力量:6}, succText:'你平息内乱，威望大涨。', fail:{体质:-10, 声望:-4}, failText:'卷入漩涡，身心俱疲。', death:0.08, deathText:'死于内斗漩涡'}}, {label:'明哲保身', eff:{悟性:4}}]},
@@ -5004,9 +5544,9 @@ let EVENTS = [
  eff:{声望:10, 悟性:5}, evAdd:{flag:'master', eff:{声望:8}, txt:'名师出高徒，你的师承成了宗门最响的招牌'}}, {label:'谢绝挂职', eff:{悟性:3}}]},
 /* ==== 逆天机缘（DL_RS_4.64）：触发概率极低（w≈0.05），触发后获得限时「天命眷顾」修炼 buff
        或魂力/属性暴涨——主角级命格专属，配合神级武魂的衰减减免，可冲击 20-30 岁极限成神 ==== */
-  {band:1, q:'legend', minAge:12, name:'仙品圣药·九转金莲', syn:{cat:'zhi',catMult:1.2}, text:'万载难逢的九转金莲在你眼前绽放，莲香沁人心脾——传说服之可脱胎换骨、直抵天骄之境！', once:true, w:0.05,
+  {band:1, q:'legend', minAge:12, name:'仙品圣药·九转金莲', syn:{cat:'zhi',catMult:1.2}, text:'万载难逢的九转金莲在你眼前绽放，莲香沁人心脾——传说服之可脱胎换骨、直抵天骄之境！', once:true, w:0.05, req:{xianMin:1},
    opts:[{label:'服下金莲', eff:{体质:15, 悟性:12, 精神力:12}, fortune:{years:6, mult:5}, heroTxt:'九转金莲入腹，仙药之力在四肢百骸炸开，你仿佛听见了命运之门洞开的声音！'}, {label:'炼制成丹转售', eff:{金魂币:2000}}]},
-  {band:1, q:'mythic', minAge:16, name:'神界灌顶', text:'神界之门短暂洞开，一缕神光直贯而下，灌入你体内——这是神祇亲自垂青！', once:true, w:0.05,
+  {band:1, q:'mythic', minAge:16, name:'神界灌顶', text:'神界之门短暂洞开，一缕神光直贯而下，灌入你体内——这是神祇亲自垂青！', once:true, w:0.05, req:{xianMin:1},
    opts:[{label:'承接神光', eff:{lv:12, 悟性:10, 天命:8}, fortune:{years:4, mult:4}, heroTxt:'神光灌顶，魂力暴涨，你与神界的距离，似乎只隔着一层薄纱。'}, {label:'惊退避让', eff:{悟性:5}}]},
   {band:2, q:'legend', minAge:20, name:'海神之光', text:'海神岛的圣光穿透万里海浪，笼罩你身——你与海神产生了最深层的共鸣。', once:true, w:0.05, req:{lv:30},
    opts:[{label:'沐浴圣光', eff:{体质:14, 精神力:14, 天命:12}, fortune:{years:5, mult:4}, heroTxt:'海神之光洗炼神魂，你仿佛听见了来自万顷碧波的神谕。'}, {label:'凝望片刻', eff:{悟性:6}}]},
@@ -5157,8 +5697,26 @@ function autoAct(){
     if(!btns.length) return false;
     const title = $('actionTitle') ? $('actionTitle').textContent : '';
     let t = null;
-    if(title.includes('猎取')){ const _hunt=(PERS_BY_NAME[G.personality||'']||{}).hunt||'中'; // DL_RS_4.151：猎魂档位按性格（勇猛/豪迈喜猛，余者居中）
-      t = btns.find(b=>!b.disabled && b.textContent.trim().startsWith(_hunt)) || btns.find(b=>!b.disabled) || btns[0]; }
+    if(title.includes('猎取')){
+      // DL_RS_4.151：猎魂档位按性格（勇猛/豪迈喜猛，余者居中）
+      // 修复：低等级/低体质时自动降级到安全档位，避免反噬死亡
+      const _hunt=(PERS_BY_NAME[G.personality||'']||{}).hunt||'中';
+      const _idx = G.rings.length;
+      const _cap = maxRingCap(_idx);
+      const _tz = G.a.体质;
+      // 按优先级检查各档位安全性：预估最高年限不超过承受上限，且十万年魂环需体质≥70
+      let _safe = '稳';
+      for(const _c of ['中','猛']){
+        const _maxY = ringYearRange(_idx, _c)[1];
+        const _ok = (_maxY <= _cap) && (_maxY < 100000 || _tz >= 70);
+        if(_ok) _safe = _c;
+      }
+      // 性格偏好档位若不安全则降级到安全档位
+      const _final = (_hunt==='猛' && _safe!=='猛') ? _safe : _hunt;
+      t = btns.find(b=>!b.disabled && b.textContent.trim().startsWith(_final))
+        || btns.find(b=>!b.disabled && b.textContent.trim().startsWith(_safe))
+        || btns.find(b=>!b.disabled) || btns[0];
+    }
     else {
       // DL_RS_4.94：神位传承三档选择——挂机自动选「最高可用档」（实力配得上才承高位）；
       // 神考/自创神位可用时优先挑战（与修炼独立并行）；否则按需智能选修炼行动（DL_RS_4.91，4.92 同步神位平衡）
