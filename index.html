@@ -43,6 +43,8 @@
   .statpill.warn{border-color:var(--red)} .statpill.warn b{color:var(--red)}
   /* DL_RS_4.188：属性网格固定4列，总值大号 + 加成小字绿色，视觉主次分明 */
   .attrgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 16px}
+  /* DL_RS_4.194：投胎页出身属性（家境/天命）双列居中，不再偏左空出右半 */
+  #rollAttrs{max-width:300px;margin:0 auto;grid-template-columns:repeat(2,1fr)}
   .attrbox{position:relative;display:flex;align-items:baseline;justify-content:center;gap:5px;padding:2px 0;flex-wrap:nowrap;min-width:0}
   .attrbox .nm{font-size:12px;color:var(--dim);white-space:nowrap;flex-shrink:0}
   .attrbox .vl{color:var(--gold);font-weight:700;font-size:16px;white-space:nowrap}
@@ -80,6 +82,12 @@
   .chainbox b{color:var(--gold)}
   .chainbox .on{color:var(--green)}
   .chainbox .todo{color:var(--dim)}
+  /* DL_RS_4.195：关键事件飘字——非阻塞正反馈（右上角浮现，自动挂机不打断） */
+  #toastBox{position:fixed;top:56px;right:14px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+  .toast{background:rgba(20,18,28,.95);border:1px solid var(--gold);border-left:3px solid var(--gold);color:var(--gold);font-size:14.5px;font-weight:700;padding:10px 17px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.45);opacity:0;transform:translateX(24px);animation:toastIn .25s ease forwards;max-width:70vw}
+  .toast.out{animation:toastOut .4s ease forwards}
+  @keyframes toastIn{to{opacity:1;transform:translateX(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateY(-12px)}}
   /* 轮回殿 */
   .lhrow{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:7px;font-size:12.5px}
   .lhrow .ln{font-weight:700;font-size:13px;min-width:70px}
@@ -97,7 +105,8 @@
   .fate-nm{font-weight:700;color:var(--gold);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fate-ds{color:var(--dim);font-size:10.5px;line-height:1.5;flex:1}
   /* 自动挂机 */
-  #autoBar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  #topSticky{position:sticky;top:0;z-index:60;background:var(--bg);padding:6px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:10px}
+  #autoBar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
   .btn.auto-on{background:var(--green);border-color:var(--green);color:#0d1424;font-weight:700}
   .auto-speed.on{border-color:var(--gold2);color:var(--gold)}
   /* 结局总结页 */
@@ -339,10 +348,10 @@
   <div id="screen-roll" class="screen">
     <div class="center">
       <div class="title-s">转世投胎</div>
-      <p class="muted" style="margin-bottom:16px">出生之前，先掷出你的先天资质。力量/敏捷/体质/精神力为战斗四维（普通人基准 5，不设上限）</p>
+      <p class="muted" style="margin-bottom:16px">出生之前，先定你的出身。家境与天命已定，战斗天赋（四维/悟性）将在武魂觉醒后显形</p>
       <div id="rollGender" style="width:100%;max-width:420px;margin-bottom:10px"></div>
-      <div id="rollAttrs" style="width:100%;max-width:420px" class="attrgrid"></div>
-      <div class="muted" style="width:100%;max-width:420px;margin-top:8px;font-size:11px;line-height:1.7;text-align:left">掷点规则：力量/敏捷/体质/精神力开局 0-10 随机（轮回殿加点与命格可提升，不设上限）；<br>悟性 5-70 随机（事件图鉴与轮回殿可提升）；家境 5-70 随机（命格可保底）；天命 5-70 随机（图鉴收集可提升）</div>
+      <div id="rollAttrs" style="width:100%" class="attrgrid"></div>
+      <div class="muted" style="width:100%;max-width:420px;margin-top:8px;font-size:11px;line-height:1.7;text-align:left">掷点规则：家境 5-70 随机（命格可保底）；天命 5-70 随机（图鉴收集可提升）；<br>力量/敏捷/体质/精神力与悟性在武魂觉醒后按武魂类型倾向掷出（轮回殿加点与命格仍可提升；悟性受武魂品质上限约束）</div>
       <div id="giftBox" style="width:100%;max-width:420px;margin-top:10px;display:none"></div>
       <div style="display:flex;gap:10px;margin-top:18px">
         <button class="btn" id="btnReroll">重新投胎</button>
@@ -362,22 +371,29 @@
         <div id="awaInfo" style="margin:6px 0"></div>
         <div id="awaDual" style="color:var(--gold);font-size:13px;margin-bottom:6px"></div>
       </div>
+      <div class="card" style="width:100%;max-width:460px;margin-top:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">先天资质</div>
+        <div id="awaAttrs" class="attrgrid" style="width:100%"></div>
+        <div class="muted" style="font-size:11px;margin-top:6px">战斗天赋随武魂显形：四维按武魂类型倾向生成，悟性受武魂品质上限约束</div>
+      </div>
       <button class="btn primary" id="btnBegin" style="margin-top:16px">开始修炼生涯</button>
     </div>
   </div>
 
   <div id="screen-game" class="screen">
-    <div id="autoBar">
-      <button class="btn small" id="btnAuto" title="开启/暂停自动挂机，自动修炼（历练）、自动选择事件与猎魂">自动</button>
-      <button class="btn small" id="btnGuide" title="查看新手指南">指南</button>
-      <span class="muted" style="font-size:12px">速度</span>
-      <button class="btn small auto-speed" data-s="1">×1</button>
-      <button class="btn small auto-speed" data-s="2">×2</button>
-      <button class="btn small auto-speed on" data-s="4">×4</button>
-      <button class="btn small auto-speed" data-s="8">×8</button>
-      <span class="muted" id="autoHint" style="font-size:12px">自动模式：自动修炼（历练）、自动选择事件与猎魂，随时可停</span>
+    <div id="topSticky">
+      <div id="autoBar">
+        <button class="btn small" id="btnAuto" title="开启/暂停自动挂机，自动修炼（历练）、自动选择事件与猎魂">自动</button>
+        <button class="btn small" id="btnGuide" title="查看新手指南">指南</button>
+        <span class="muted" style="font-size:12px">速度</span>
+        <button class="btn small auto-speed" data-s="1">×1</button>
+        <button class="btn small auto-speed" data-s="2">×2</button>
+        <button class="btn small auto-speed on" data-s="4">×4</button>
+        <button class="btn small auto-speed" data-s="8">×8</button>
+        <span class="muted" id="autoHint" style="font-size:12px">自动模式：自动修炼（历练）、自动选择事件与猎魂，随时可停</span>
+      </div>
+      <div id="topStats"></div>
     </div>
-    <div id="topStats"></div>
     <div id="hudLunhui" style="margin-bottom:10px;font-size:11.5px;line-height:1.6"></div>
     <div id="layout">
       <div>
@@ -434,6 +450,8 @@
     </div>
   </div>
 </div>
+
+<div id="toastBox"></div>
 
 <script>const RULESET = 'DL_RS_3_20260831';
 
@@ -595,6 +613,12 @@ function equipBone(grade, fixSlot, skipCheck){
   else if(g.achievements.indexOf('魂骨')<0) g.achievements.push('魂骨');
   if(!g.bones) g.bones = []; // DL_RS_4.178：空值检查
   g.bones = slots; g.bones.push({slot, grade, main, attrAdd, skill:boneSkill});
+  // DL_RS_4.195：魂骨获得飘字——颜色按年限标准（十万年红 / 万年黑 / 千年紫 / 百年黄）
+  if(grade){
+    const gBg = grade==='十万年' ? '#e03131' : grade==='万年' ? '#3a3f4b' : grade==='千年' ? '#9b59b6' : '#e6c940';
+    const gTx = grade==='十万年' ? '#ffd700' : grade==='万年' ? '#eceff5' : '#fff';
+    showToast('获得'+grade+'魂骨 · '+slot+'（+'+mVal+main+'）', gTx, gBg);
+  }
   return {slot, grade, main, mVal, sub, sVal, skill:boneSkill};
 }
 
@@ -745,6 +769,10 @@ function doMutate(g, newName, newQ, same, label){
   } else {
     addLog(`<b>良性变异！</b>你的武魂 ${oldName} 蜕变为 ${newName}，品质不变、修炼速度小幅提升（×${m}）！`,'good');
   }
+  // DL_RS_4.195：变异飘字（命运转折节点，良/恶/同级各有颜色）
+  if(di > 0) showToast('武魂变异 · '+oldName+' → '+newName, '#7CFC9A');
+  else if(di < 0) showToast('武魂变异 · '+oldName+' → '+newName, '#ff6b6b');
+  else showToast('武魂蜕变 · '+newName, '#ffd700');
 }
 
 /* ============ 本体武魂·二次觉醒（DL_RS_4.137） ============
@@ -1302,7 +1330,7 @@ function applyFateBase(g){
   (g._fates||[]).forEach(f=>{
     if(f.attr) Object.keys(f.attr).forEach(k=>{
       if(k==='天命'||k==='家境') g.a[k]=clamp(g.a[k]+f.attr[k],1,100);
-      else g.a[k]=Math.max(0, g.a[k]+f.attr[k]);
+      else g._fateAttrBonus[k] = (g._fateAttrBonus[k]||0) + f.attr[k]; // DL_RS_4.192：四维/悟性命格加成暂存，觉醒掷点后叠加
     });
     if(f.famFloor) g.a.家境 = Math.max(g.a.家境, f.famFloor);
     // DL_RS_4.177：命格天生魂骨——出生即自带魂骨，跳过魂力等级检查（此时角色尚未武魂觉醒，魂力为0）
@@ -1913,17 +1941,13 @@ function rollPersona(){
   return {gender:g2, name:pick(g2==='男'?NAME_MALE:NAME_FEMALE), personality:pn};
 }
 function rollAttrs(){
+  // DL_RS_4.192：投胎页只定出身（家境/天命）；战斗四维与悟性改在武魂觉醒后按武魂类型倾向生成
   const a = {
-    体质: ri(0,10), 悟性: ri(5,70), 力量: ri(0,10), 敏捷: ri(0,10), 精神力: ri(0,10), 家境: ri(5,70), 天命: ri(5,70)
+    体质: 0, 悟性: 0, 力量: 0, 敏捷: 0, 精神力: 0, 家境: ri(5,70), 天命: ri(5,70)
   };
   // 保存基础随机值（用于开局显示"总值（基础+加成）"）
-  const _base = {体质:a.体质, 悟性:a.悟性, 力量:a.力量, 敏捷:a.敏捷, 精神力:a.精神力, 家境:a.家境, 天命:a.天命};
-  // 轮回殿永久加点：出生属性加成（力量/敏捷/体力/精神力 +1/点，悟性 +0.5/点）
-  a.力量 += lunhuiVal('liLiang'); a.敏捷 += lunhuiVal('minJie');
-  a.体质 += lunhuiVal('tiLi');    a.精神力 += lunhuiVal('jingShen');
-  a.悟性 += lunhuiVal('wuXing')*0.5;
+  const _base = {体质:0, 悟性:0, 力量:0, 敏捷:0, 精神力:0, 家境:a.家境, 天命:a.天命};
   a.天命 += atlasBonus(); // DL_RS_4.33：图鉴收集里程碑 → 永久天命加成
-  a.悟性 += atlasBonusEvents(); // DL_RS_4.99：事件图鉴收集里程碑 → 永久悟性加成
   // 战斗四维不设上限（仅保底 0），其余三维保持 1-100
   FIGHT_ATTRS.forEach(k=>{ a[k]=Math.max(0, a[k]); });
   OTHER_ATTRS.forEach(k=>{ a[k]=clamp(a[k],1,100); });
@@ -1997,7 +2021,8 @@ function renderGift(){
 function renderRoll(){
   const ag = $('rollAttrs'); ag.innerHTML='';
   const gdEl = $('rollGender'); if(gdEl) gdEl.innerHTML = `<span style="margin-right:12px">姓名 <b style="font-size:15px;color:var(--gold2)">${G.name||'无名'}</b></span><span style="margin-right:12px">性别 <b style="font-size:15px;color:var(--gold2)">${G.gender||'男'}</b></span><span>性格 <b style="font-size:15px;color:var(--gold2)">${G.personality||''}</b></span>`;
-  ATTRS.forEach(k=>{ const _base = G._attrBase ? G._attrBase[k] : null; const _bonus = G._attrBonus ? G._attrBonus[k] : null; const _val = Math.round(G.a[k]*10)/10; const _hasBonus = (_base !== null && _bonus !== null && _bonus > 0); ag.insertAdjacentHTML('beforeend', bar(k, _val, k==='精神力'?'psi':'', _hasBonus ? _bonus : null) ); });
+  // DL_RS_4.192：投胎页只显示出身属性（家境/天命），战斗天赋在武魂觉醒后显形
+  ['家境','天命'].forEach(k=>{ const _base = G._attrBase ? G._attrBase[k] : null; const _bonus = G._attrBonus ? G._attrBonus[k] : null; const _val = Math.round(G.a[k]*10)/10; const _hasBonus = (_base !== null && _bonus !== null && _bonus > 0); ag.insertAdjacentHTML('beforeend', bar(k, _val, '', _hasBonus ? _bonus : null) ); });
   const fam = G.a.家境;
   let bg='山村贫家', tip='家中温饱难继，修炼全凭天资。';
   if(fam<20){bg='山村贫家'; tip='饭都未必吃饱，觉醒个像样武魂已是奢望。'}
@@ -2005,7 +2030,7 @@ function renderRoll(){
   else if(fam<60){bg='小贵族/富商'; tip='家族有些积蓄，能为你买些低阶药材。'}
   else if(fam<80){bg='宗门子弟'; tip='背靠宗门，魂导器与修炼资源唾手可得。'}
   else {bg='皇族/顶级宗门'; tip='生而尊贵，血脉中流淌着强者的印记。'}
-  $('rollTips').innerHTML = `<b>${bg}</b> · ${tip} <br><span class="muted">精神力影响战力、猎魂感知与魂技威力；不同武魂各有属性成长倾向。寿元有限，修炼慢者将空耗一生。</span>`;
+  $('rollTips').innerHTML = `<b>${bg}</b> · ${tip} <br><span class="muted">出身已定——战斗四维与悟性将在武魂觉醒后，随武魂类型与品质显形。寿元有限，修炼慢者将空耗一生。</span>`;
   renderGift(); // DL_RS_4.115：来世天赋面板（投胎页）
   // DL_RS_4.176：更新重新投胎按钮状态（消耗1轮回点，防止无限刷开局）
   const _rerollBtn = $('btnReroll');
@@ -2033,6 +2058,7 @@ $('btnReroll').onclick = ()=>{
   renderRoll(); 
 };
 $('btnAccept').onclick = ()=>{
+  G._fateAttrBonus = {}; // DL_RS_4.192：命格四维/悟性加成暂存容器（觉醒掷点时叠加）
   G._fates = rollFates(); applyFateBase(G); // DL_RS_4.116：接受命运时抽取/应用命格（含来世天赋指定命格）
   G.age = 0; G.lv = 0; G.soul = null; G.dual = null; G.rings = []; G.dualRings = []; G.skills = [];
   G.money = 100 + G.a.家境*5; G.prestige = 0; G.org = ''; G.spouse = ''; G.master = '';
@@ -2108,10 +2134,46 @@ const Q_BONUS = {
   super:{力量:5, 体质:5, 精神力:5, 敏捷:4, 悟性:4},
   shen: {力量:6, 体质:6, 精神力:6, 敏捷:5, 悟性:5}
 };
+/* DL_RS_4.192：先觉醒武魂、后定天赋——四维按武魂类型倾向掷点（区间），悟性受品质上限约束（生成即受限，不再"觉醒后砍属性"） */
+const ATTR_BIAS = {
+  shou: {力量:[2,12], 敏捷:[1,11], 体质:[1,10], 精神力:[0,8]},  // 兽武魂：力量敏捷突出
+  qi:   {力量:[2,12], 敏捷:[0,9],  体质:[0,9],  精神力:[2,12]}, // 器武魂：力量+精神力
+  zhi:  {力量:[0,8],  敏捷:[0,9],  体质:[2,12], 精神力:[2,12]}, // 植物武魂：体质+精神力
+  bt:   {力量:[1,11], 敏捷:[1,11], 体质:[1,11], 精神力:[1,11]}  // 本体武魂：全属性均衡
+};
+function rollAwakenAttrs(g, quality, cat){
+  const a = g.a;
+  // 四维按武魂类型倾向掷点
+  const bias = ATTR_BIAS[cat] || {};
+  ['力量','敏捷','体质','精神力'].forEach(k=>{
+    const rng = bias[k] || [0,10];
+    a[k] = ri(rng[0], rng[1]);
+  });
+  // 悟性按品质上限掷点（WU_LIMIT 同 DL_RS_4.190）
+  const WU_LIMIT = {fei:50, pu:65, you:80, ding:90, super:95, shen:100};
+  const wuCap = Math.min(70, WU_LIMIT[quality] || 100);
+  a.悟性 = ri(5, wuCap);
+  // 记录天赋随机基础值（家境/天命保留投胎页原随机值）
+  ['力量','敏捷','体质','精神力','悟性'].forEach(k=>{ g._attrBase[k] = a[k]; });
+  // 叠加永久加成：轮回殿加点 + 图鉴事件悟性
+  a.力量 += lunhuiVal('liLiang'); a.敏捷 += lunhuiVal('minJie');
+  a.体质 += lunhuiVal('tiLi');    a.精神力 += lunhuiVal('jingShen');
+  a.悟性 += lunhuiVal('wuXing')*0.5;
+  a.悟性 += atlasBonusEvents(); // DL_RS_4.99：事件图鉴收集里程碑 → 永久悟性加成
+  // 命格暂存加成（根骨清奇等四维/悟性命格加成，btnAccept 时暂存于 _fateAttrBonus）
+  if(g._fateAttrBonus) Object.keys(g._fateAttrBonus).forEach(k=>{ a[k] += g._fateAttrBonus[k]; });
+  // 悟性 clamp 到品质上限（生成即受限）
+  a.悟性 = Math.min(a.悟性, WU_LIMIT[quality] || 100);
+  FIGHT_ATTRS.forEach(k=>{ a[k]=Math.max(0, a[k]); });
+  a.悟性 = clamp(a.悟性, 1, 100);
+  // 更新加成拆分（总值 - 随机基础值）
+  ATTRS.forEach(k=>{ g._attrBonus[k] = Math.max(0, Math.round((a[k] - g._attrBase[k]) * 10) / 10); });
+}
 function awakenSoul(g){
   let quality = rollQuality(g);
   if(GIFT && GIFT.wuQ) quality = GIFT.wuQ; // DL_RS_4.116：来世天赋·定制武魂——品质先行，武魂名/先天魂力统一按定制品质生成（修复：原覆盖滞后致「神级·蓝银草·先天3」错位）
   const s = rollSoul(quality);
+  rollAwakenAttrs(g, quality, s.cat); // DL_RS_4.192：先掷天赋（四维按武魂类型倾向、悟性受品质上限），后测先天魂力（先天魂力受体质影响，故体质需先生成）
   let xian = rollXian(quality, g.a);
   if(hasFate(g,'xian') && xian>0) xian = Math.min(10, xian+2); // 命格·天骄血脉：先天魂力+2（先天0凡人无效）
   g.soul = {cat:s.cat, name:s.name, quality, xian};
@@ -2155,6 +2217,8 @@ function awakenSoul(g){
     g.a.悟性 = _wuLimit;
     addLog(`武魂品质限制悟性领悟，悟性上限调整为 ${_wuLimit}（原 ${Math.round(_oldWu)}）。`, 'note');
   }
+  // DL_RS_4.192：武魂类型/品质加成计入加成拆分——觉醒页"总值（基础+加成）"显示准确
+  ATTRS.forEach(k=>{ g._attrBonus[k] = Math.max(0, Math.round((g.a[k] - g._attrBase[k]) * 10) / 10); });
   return {soul:g.soul, dual};
 }
 function renderAwaken(){
@@ -2176,6 +2240,17 @@ function renderAwaken(){
       ? '整座大殿都在颤栗——这是足以名动大陆的武魂！'
       : (s.quality==='fei'?'周围的少年投来同情的目光。废武魂的前路，布满荆棘。':'觉醒师长微微点头，还算不错。'));
   if(s.xian===20) G.achievements.push('先天二十级');
+  // DL_RS_4.192：觉醒页展示全部先天资质（四维按武魂类型倾向、悟性受品质上限，含加成拆分）
+  const _ag = $('awaAttrs');
+  if(_ag){ _ag.innerHTML='';
+    ATTRS.forEach(k=>{
+      const _base = G._attrBase ? G._attrBase[k] : null;
+      const _bonus = G._attrBonus ? G._attrBonus[k] : null;
+      const _val = Math.round(G.a[k]*10)/10;
+      const _hasBonus = (_base !== null && _bonus !== null && _bonus > 0);
+      _ag.insertAdjacentHTML('beforeend', bar(k, _val, k==='精神力'?'psi':'', _hasBonus ? _bonus : null));
+    });
+  }
   show('screen-awaken');
 }
 /* DL_RS_4.166：新手引导弹窗 */
@@ -2226,6 +2301,34 @@ $('btnBegin').onclick = ()=>{
   // DL_RS_4.166：新手引导——首次进入游戏弹出指南，老玩家通过 localStorage 跳过
   if(!localStorage.getItem('dl_guide_seen')){ setTimeout(showGuide, 500); }
 };
+
+/* ============ 关键事件飘字（DL_RS_4.195） ============ */
+/* 非阻塞正反馈：右上角浮现后自动淡出，自动挂机不打断节奏；最多同屏 4 条 */
+function showToast(txt, color, bg){
+  const box = document.getElementById('toastBox');
+  if(!box) return;
+  const d = document.createElement('div');
+  d.className = 'toast';
+  if(color){ d.style.borderColor = color; d.style.borderLeftColor = color; d.style.color = color; }
+  if(bg){ d.style.background = bg; }
+  d.innerHTML = txt;
+  box.appendChild(d);
+  while(box.children.length > 4) box.removeChild(box.firstChild);
+  setTimeout(()=>{ d.classList.add('out'); setTimeout(()=>d.remove(), 450); }, 2400);
+}
+/* 境界大突破检测：跨大境界（魂宗→魂王等）时飘字提示一次；降级不提示 */
+const _REALM_ORDER = ['魂士','魂师','大魂师','魂尊','魂宗','魂王','魂帝','魂圣','魂斗罗','封号斗罗','超级斗罗','极限斗罗','神祇'];
+function checkRealmBreak(g){
+  if(!g || !g.soul) return;
+  const r = realmName(g.lv);
+  if(g._lastRealm === undefined){ g._lastRealm = r; return; }
+  const a = _REALM_ORDER.indexOf(g._lastRealm), b = _REALM_ORDER.indexOf(r);
+  if(b > a && b >= 0){
+    showToast('境界突破 · '+r, '#ffd700');
+    addLog('—— <b>突破至'+r+'！</b>——','good');
+  }
+  g._lastRealm = r;
+}
 
 /* ============ 日志 ============ */
 function addLog(text, cls){
@@ -2293,6 +2396,7 @@ function renderCompactStats(){
 }
 function renderGame(){
   const g=G, a=g.a;
+  checkRealmBreak(g); // DL_RS_4.195：境界大突破飘字
   const tierName = realmName(g.lv);
   const rTitle = realmTitle(); // DL_RS_4.33：封号称号（90 级+）
   const lifeCap = lifeCapOf();
@@ -2377,12 +2481,17 @@ function renderChain(){
   if(!G.chain) return '';
   const ch = CHAINS[G.chain.id];
   if(!ch) return '';
-  let html = `<b>事件链：${ch.name}</b> · ${ch.desc||''}<br>`;
+  const total = ch.steps.length;
+  const cur = Math.min(G.chain.step, total);
+  // DL_RS_4.195：事件链追踪器——步骤进度 + 终点目标（预期奖励类型），强化长线剧情沉浸感
+  const lastEv = EVENTS.find(e=>e && e.chainId===G.chain.id && e.step===ch.steps[total-1]);
+  let html = `<b>事件链：${ch.name}</b>（第 ${cur}/${total} 步）<br><span style="color:var(--dim)">${ch.desc||''}</span>`;
+  if(lastEv) html += `<br><span style="color:var(--gold2)">→ 终点：${lastEv.name}</span>`;
   ch.steps.forEach((st, i)=>{
     const ev = EVENTS.find(e=>e && e.chainId===G.chain.id && e.step===st);
     const done = i < G.chain.step;
-    const cur = i === G.chain.step;
-    html += `<span class="${done?'on':(cur?'':'todo')}">${done?'✓':(cur?'▸':'·')} ${ev?ev.name:st}</span> ${done?'':''}<br>`;
+    const cur2 = i === G.chain.step;
+    html += `<br><span class="${done?'on':(cur2?'':'todo')}">${done?'✓':(cur2?'▸':'·')} ${ev?ev.name:st}</span>`;
   });
   return html;
 }
@@ -3299,6 +3408,11 @@ function resolveHunt(choice, idx){
     g.rings.push({q:rq, skill, choice, y:ry, beast, ele, sync});
     g.skills.push(skill);
     g.prestige += 5;
+    // DL_RS_4.195：万年以上魂环飘字——颜色按年限标准（万年黑 / 十万年红）
+    if(ry >= 10000){
+      if(ry >= 100000) showToast('十万年魂环入体！· '+yearStr(ry), '#ffd700', '#e03131');
+      else showToast('万年魂环入体 · '+yearStr(ry)+'「'+skill+'」', '#eceff5', '#3a3f4b');
+    }
 
     let logTxt = `<b>猎魂成功！</b>你斩获${yearStr(ry)}·<b>${beast}</b>（${beastYearDesc(ry)}），获得${Q_KEYS[rq]}魂环，魂技「${skill}」`;
     if(g.dual){
@@ -4023,6 +4137,16 @@ card.innerHTML = `<div class="en">【${ev.name}】${qtagHtml}${chainTag}</div><d
       b.textContent += '（奖励：'+parts.join('，')+'）';
     }
     b._o = o; // 供自动挂机决策（优先选无风险选项）
+    // DL_RS_4.195：roll选项收益预览——悬停title即时展示成功率/成败收益/殒命风险，无需跳图鉴
+    if(o.roll){
+      const _pct = Math.round((o.roll.chance+(o.roll.extra||0))*100);
+      const _s = fmtEff(o.roll.succ), _f = fmtEff(o.roll.fail);
+      let _t = '成功率 '+_pct+'%';
+      if(_s) _t += ' · 成功：'+_s;
+      if(_f) _t += ' · 失败：'+_f;
+      if(o.roll.death) _t += ' · 含 '+Math.round(o.roll.death*100)+'% 殒命风险';
+      b.title = _t;
+    }
     if(dis){
       b.disabled = true; b.className = 'btn btn-locked'; b.title = '条件不足，无法选择';
     } else if(o._fallback){
@@ -4717,7 +4841,7 @@ const EVAL_FIRST = [
   ]},
   {cond: c=>c.lv>=60, texts:[
     c=>`魂帝，人中翘楚。这个境界已是绝大多数魂师毕生难以企及的高度，你的名字值得被记住。`,
-    c=>`魂帝之境，百魂师难出其右。${c.s.name}这一世，无愧于这个名字。`
+    c=>`魂帝之境，百魂师难出其右。你这一世，没有辱没${c.s.name}之名。`
   ]},
   {cond: c=>c.lv>=50, texts:[
     c=>`魂王，小有名气。你于佣兵与宗门间立足，刀光剑影里走过半生，也算不枉这一世。`,
@@ -4816,7 +4940,11 @@ function endEvalOf(){
     shen: pick(['神级武魂，万中无一。你，本就是为了成神而生——这是武魂殿史册上都要浓墨重彩的一笔。','神级武魂，天生不凡。这世上能与你比肩的觉醒者，一个时代也出不了几个。'])
   };
   let second = `${typeDesc[s.cat]||''}${qDesc[s.quality]||''}`;
-  if(ach.length) second += ` 一生留名：${ach.join('、')}。`;
+  if(ach.length){
+    // DL_RS_4.196：成就展示去冗余——已获「十万年魂骨」时省略泛化的「魂骨」，避免「魂骨、十万年魂骨」并列重复
+    const _disp = ach.filter(a=>!(a==='魂骨' && ach.indexOf('十万年魂骨')>=0));
+    second += ` 一生留名：${_disp.join('、')}。`;
+  }
   if(s.xian===20) second += ' 先天二十级魂力，万古无一！';
   if(g.dual) second += ` 身怀双生武魂 ${g.dual.name}，当世罕有。`;
 
@@ -4953,10 +5081,29 @@ function endEvalOf(){
       ]);
     }
   } else {
-    specialEval = pick([
-      '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
-      '没有双生武魂，没有神位传承，没有神器傍身——你凭最普通的天赋，走出了不普通的一生。'
-    ]);
+    // DL_RS_4.193：特殊机缘评语按武魂品质分流天赋评价，避免"顶级武魂却说最普通天赋"的矛盾
+    const _spQ = g.soul ? g.soul.quality : 'pu';
+    if(_spQ === 'fei'){
+      specialEval = pick([
+        '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
+        '没有双生武魂，没有神位传承，没有神器傍身——废武魂起步，你却走出了远超天赋上限的一生。'
+      ]);
+    } else if(_spQ === 'pu'){
+      specialEval = pick([
+        '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
+        '没有双生武魂，没有神位传承，没有神器傍身——你凭普通的天赋，走出了不普通的一生。'
+      ]);
+    } else if(_spQ === 'you'){
+      specialEval = pick([
+        '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
+        '没有双生武魂，没有神位传承，没有神器傍身——优良武魂的资质，被你稳稳地走成了一生。'
+      ]);
+    } else {
+      specialEval = pick([
+        '这一生虽无惊天动地的特殊机缘，却也走得踏实，每一步都算数。',
+        '没有双生武魂，没有神位传承，没有神器傍身——顶级武魂的天资，本就无需外物印证。'
+      ]);
+    }
   }
 
   // 第六段：际遇 + 享年 + 结语（数据驱动匹配）
