@@ -410,6 +410,7 @@
           <div id="hudSoul"></div>
           <div id="dualSoul" class="muted" style="font-size:12px;margin-top:4px"></div>
           <div id="ringSlots" class="ringslots"></div>
+          <div id="hudField" style="font-size:12.5px;color:#c9a0ff;line-height:1.8"></div>
           <div id="hudRingInfo" style="font-size:12.5px;color:var(--dim);line-height:1.8"></div>
           <div id="hudChain" class="chainbox"></div>
         </div>
@@ -514,6 +515,31 @@ function ringAttrBonus(y){
    （写进四维永久），十万年魂骨额外带魂骨技。同部位新骨可替换（自动扣减旧骨加成）。 */
 const BONE_SLOTS = ['头骨','左臂骨','右臂骨','躯干骨','左腿骨','右腿骨'];
 const BONE_ATTR = { '头骨':'精神力','左臂骨':'力量','右臂骨':'力量','躯干骨':'体质','左腿骨':'敏捷','右腿骨':'敏捷' };
+// DL_RS_4.203：神装判定——原著成神需集齐六块魂骨方能凝聚神装（六部位各至少一块，可重复部位按最前一块计）
+function boneSetComplete(){
+  const g=G; const bones=g.bones||[];
+  return BONE_SLOTS.every(slot=>bones.some(b=>b.slot===slot));
+}
+function boneSetCount(){
+  const g=G; const bones=g.bones||[];
+  return BONE_SLOTS.filter(slot=>bones.some(b=>b.slot===slot)).length;
+}
+/* DL_RS_4.204：领域系统——原著顶级强者标志（杀神/蓝银/器魂）。槽位唯一，被动标签不占属性格子；
+   三来源：地狱路百胜闯关→杀神领域、蓝银皇觉醒→蓝银领域、昊天锤乱披风大成→器魂领域。 */
+const FIELD_INFO = {
+  sha: {n:'杀神领域', d:'猎魂成功率+8% · 魂兽年份上限+20%'},
+  lan: {n:'蓝银领域', d:'修炼速度+8% · 植物系武魂魂环吸收上限+15%'},
+  qi:  {n:'器魂领域', d:'锤势镇魂 · 战力+5%'}
+};
+function setField(k, src){
+  const g=G;
+  if(g.field && g.field!==k){
+    addLog(`<b>领域更替！</b>${FIELD_INFO[g.field]?FIELD_INFO[g.field].n:'旧领域'}消散，${FIELD_INFO[k]?FIELD_INFO[k].n:k}取而代之。`,'note');
+  }
+  g.field = k;
+  addLog(`<b>领域领悟！</b>${src||''}${FIELD_INFO[k]?'——'+FIELD_INFO[k].n+'（'+FIELD_INFO[k].d+'）':''}。`,'good');
+  if(g.achievements.indexOf('领域领悟')<0) g.achievements.push('领域领悟');
+}
 /* 外附魂骨（DL_RS_4.110）：原著独特设定——猎杀魂兽极小概率爆出外附魂骨（八蛛矛/鳞甲/羽翼/龙脊），
    不占六部位、可随修为进化；蛛/蝎类魂兽更易出（原著八蛛矛出自人面魔蛛）。 */
 function extraBoneRoll(ry, beast){
@@ -563,6 +589,7 @@ function absorbBone(ry){
   }
   // 装备魂骨（部位优先空闲、六部位集齐随机替换、同部位自动扣旧加新）
   const info = equipBone(grade);
+  if(!info) return; // DL_RS_4.220：魂力不足/先天0未装上时直接返回（equipBone 已提示「魂骨无缘/魂力不足」，避免 592 空引用 TypeError）
   let txt = `<b>爆出魂骨！</b>${yearStr(ry)}魂兽竟凝出<b>${info.grade}·${info.slot}</b>，${info.main}+${info.mVal}${info.sVal>0?('、'+info.sub+'+'+info.sVal):''}${info.skill?('，附「'+info.skill+'」'):''}，融骨入体，根基更厚。`;
   addLog(txt,'good');
 }
@@ -777,6 +804,8 @@ function doMutate(g, newName, newQ, same, label){
   if(di > 0) showToast('武魂变异 · '+oldName+' → '+newName, '#7CFC9A');
   else if(di < 0) showToast('武魂变异 · '+oldName+' → '+newName, '#ff6b6b');
   else showToast('武魂蜕变 · '+newName, '#ffd700');
+  // DL_RS_4.204：蓝银皇觉醒 → 蓝银领域（任何途径蜕变至蓝银皇皆可得，唐三/变异链统一）
+  if(newName==='蓝银皇') setField('lan', '蓝银皇血脉觉醒，草木之力自成领域');
 }
 
 /* ============ 本体武魂·二次觉醒（DL_RS_4.137） ============
@@ -1244,21 +1273,22 @@ function achDoneCount(){
    每完成 1 局，按本局综合评分获得轮回点（评分越高奖励越多，凡人保底 1 点）；
    可在轮回殿永久加点，强化下一世。各项每点加成与上限严格按需求设定（手稿）： */
 const LUNHUI_DEF = [
-  {k:'dingTop', name:'顶级武魂', per:'每点+0.04%概率（满 100 点：12%→16%）', max:100, desc:'觉醒时更易抽到顶级武魂'},
-  {k:'superTop', name:'超级武魂', per:'每点+0.03%概率（满 100 点：5%→8%）', max:100, desc:'觉醒时更易抽到超级武魂'},
-  {k:'shenTop', name:'神级武魂', per:'每点+0.02%概率（满 100 点：1%→3%）', max:100, desc:'觉醒时更易抽到神级武魂'},
+  {k:'dingTop', name:'顶级武魂', per:'每点+0.04%（满100点 12%→16%）', max:100, desc:'觉醒时更易抽到顶级武魂'},
+  {k:'superTop', name:'超级武魂', per:'每点+0.03%（满100点 5%→8%）', max:100, desc:'觉醒时更易抽到超级武魂'},
+  {k:'shenTop', name:'神级武魂', per:'每点+0.02%（满100点 1%→3%）', max:100, desc:'觉醒时更易抽到神级武魂'},
   {k:'liLiang', name:'力量', per:'+1 /点', max:10, desc:'出生力量'},
   {k:'minJie', name:'敏捷', per:'+1 /点', max:10, desc:'出生敏捷'},
   {k:'tiLi',   name:'体力', per:'+1 /点', max:10, desc:'出生体质'},
   {k:'jingShen',name:'精神力', per:'+1 /点', max:10, desc:'出生精神力'},
-  {k:'life',   name:'寿命上限', per:'+1 /点', max:20, desc:'出生寿元上限（人类寿命区间内加成）'},
+  {k:'life',   name:'寿命上限', per:'+1 /点', max:20, desc:'提高出生寿元上限'},
   {k:'wuXing', name:'悟性', per:'+0.5 /点', max:20, desc:'出生悟性'},
-  {k:'cultTop', name:'修炼天赋', per:'+3% 修炼速度/点', max:30, desc:'魂力修炼速度提升——初始一世艰难，轮回加护渐易'},
-  {k:'huntTop', name:'猎魂福缘', per:'+1.5% 猎魂成功率/点', max:15, desc:'提高猎杀魂兽成功率、降低凶险'},
+  {k:'cultTop', name:'修炼天赋', per:'+3% 修炼速度/点', max:30, desc:'提高魂力修炼速度'},
+  {k:'huntTop', name:'猎魂福缘', per:'+1.5% 猎魂成功率/点', max:15, desc:'提高猎魂成功率、降低凶险'},
   {k:'epicEv',   name:'黑事件', per:'+0.1% 概率/点', max:60, desc:'黑色史诗事件出现概率'},
   {k:'legendEv', name:'红事件', per:'+0.1% 概率/点', max:50, desc:'红色传说事件出现概率'},
-  {k:'mythicEv', name:'金事件', per:'+0.1% 概率/点', max:50, desc:'金色神话事件出现概率'},
-  {k:'goodMut', name:'武魂变异', per:'+0.25% 触发概率/点', max:60, desc:'提高特定武魂触发变异的概率（基础 5%，上限 20%；上三宗专属武魂入对宗门可突破上限）'}
+  {k:'mythicEv', name:'金事件', per:'+0.05% 概率/点', max:50, desc:'金色神话事件出现概率'},
+  {k:'goodMut', name:'武魂变异', per:'+0.25% 触发概率/点', max:60, desc:'提高武魂变异概率（基础 5%，入对宗门可突破上限）'},
+  {k:'shenGan', name:'神位感应', per:'每点+0.01%/年（满50点：99级一生约25%）', max:50, desc:'提高神位传承感应（95级后生效）'}
 ];
 function lunhuiVal(k){ return META.lunhui[k] || 0; }
 /* DL_RS_4.75：局内轮回加护展示——把轮回殿加点转成实际加成文案（局内 HUD 只读显示） */
@@ -1282,8 +1312,9 @@ function lunhuiBuffText(){
       case 'huntTop':  t = '猎魂成功率+'+fmt(v*1.5)+'%'; break;
       case 'epicEv':   t = '黑事件+'+fmt(v*0.1)+'%'; break;
       case 'legendEv': t = '红事件+'+fmt(v*0.1)+'%'; break;
-      case 'mythicEv': t = '金事件+'+fmt(v*0.1)+'%'; break;
+      case 'mythicEv': t = '金事件+'+fmt(v*0.05)+'%'; break;
       case 'goodMut':  t = '变异触发+'+fmt(v*0.25)+'%'; break;
+      case 'shenGan':  t = '神位感应+'+fmt(v*0.05)+'%'; break;
       default:         t = d.name+'+'+v;
     }
     items.push(t);
@@ -1412,7 +1443,8 @@ function renderLunhui(){
   });
   // 命格祭炼（DL_RS_4.29/4.31）：全部加点项满后激活，每 FATE_COST 点轮回点兑换 1 命格；
   // v4.31 限制——祭炼上限=命格池全收集（FATE_MAX），集齐后不可再祭炼；每局生效数随祭炼数递增（1~3→1 / 4~7→2 / 8+→3 封顶）
-  const allMax = LUNHUI_DEF.every(d=>lunhuiVal(d.k)>=d.max);
+  // DL_RS_4.214：shenGan 不参与全满解锁（防老存档无该键被锁死命格祭炼）
+  const allMax = LUNHUI_DEF.every(d=> d.k==='shenGan' || lunhuiVal(d.k)>=d.max);
   const fate = fateCount();
   const full = fate >= FATE_MAX;
   const fr=document.createElement('div'); fr.className='lhrow fate-row';
@@ -1509,9 +1541,31 @@ function validateSaveData(data){
   m.lundian = safeNum(m.lundian, 0, 99999, 0);
   m.fate = safeNum(m.fate, 0, 99999, 0);
   if(typeof m.lunhui !== 'object' || m.lunhui === null) m.lunhui = {};
+  // DL_RS_4.214b：轮回加点逐键清洗——恶意存档可注入超值键（shenGan 有感应 0.5 封顶兜底，但 cultTop 等无兜底会放大修炼），按 LUNHUI_DEF.max 收紧
+  LUNHUI_DEF.forEach(function(d){ if(m.lunhui[d.k] !== undefined) m.lunhui[d.k] = Math.max(0, Math.min(d.max, safeNum(m.lunhui[d.k], 0, d.max, 0))); });
   if(typeof m.atlas !== 'object' || m.atlas === null) m.atlas = {souls:{}, events:{}, endings:{}};
   if(typeof m.records !== 'object' || m.records === null) m.records = {};
+  // DL_RS_4.208：records 数值清洗——best* 字段数值化，其余布尔化（成就进度 p.n 直接进 innerHTML，防恶意存档注入）
+  const _rk = m.records;
+  ['bestScore','bestPower','bestLv','bestAttr'].forEach(function(k){ _rk[k] = safeNum(_rk[k], 0, 999999999, 0); });
+  Object.keys(_rk).forEach(function(k){ if(['bestScore','bestPower','bestLv','bestAttr'].indexOf(k)<0) _rk[k] = !!_rk[k]; });
   if(!Array.isArray(m.board)) m.board = [];
+  // DL_RS_4.208：轮回榜逐条清洗——board 的 soul/god/score 直接进 innerHTML（renderBoard），恶意存档可注入存储型 XSS
+  m.board = m.board.slice(0, 200).map(function(r){
+    if(typeof r !== 'object' || r === null) return null;
+    return {
+      score: safeNum(r.score, 0, 99999999, 0),
+      power: safeNum(r.power, 0, 999999999, 0),
+      lv: safeNum(r.lv, 0, 999, 0),
+      age: safeNum(r.age, 0, 9999, 0),
+      quality: escapeHtml(r.quality || '').substring(0, 20),
+      soul: escapeHtml(r.soul || '').substring(0, 50),
+      xian: safeNum(r.xian, 0, 10, 0),
+      god: escapeHtml(r.god || '').substring(0, 50),
+      alive: !!r.alive,
+      t: safeNum(r.t, 0, 9999999999999, 0)
+    };
+  }).filter(function(r){ return r !== null; });
   if(!Array.isArray(m.historySaves)) m.historySaves = [];
   // 限制历史存档数量（最多50条），防止资源耗尽
   if(m.historySaves.length > 50) m.historySaves = m.historySaves.slice(0, 50);
@@ -1582,6 +1636,8 @@ function bar(attr, val, cls, bonus){
 function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
+  // DL_RS_4.203：切换非游戏页时重置滚动到顶部——避免保留长页面（轮回殿/总结页）的滚动位置，导致返回轮回殿后需上滑才能看到「踏入轮回」
+  if(id !== 'screen-game') window.scrollTo(0,0);
 }
 function tierOf(lv){ if(lv>=100) return 11; if(lv>=99) return 10; return Math.min(Math.floor(lv/10),9); }
 /* 境界称号（仅显示用，DL_RS_4.25）：严格按原著细分 90 级以上——
@@ -1666,7 +1722,9 @@ function powerBreakdown(){
   const sqm = {fei:0.45, pu:0.75, you:1.0, ding:1.4, super:1.6, shen:1.9};
   const soulMult = (!G.soul || G.soul.xian===0) ? 1.0 : (sqm[G.soul.quality] || 1.0);
   const xb = G.extraBone ? Math.round(((G.extraBone.base||12)+(G.extraBone.tier||0)*8)*5) : 0; // 外附魂骨战力（DL_RS_4.110）
-  return { base, rings, skills, mult, soulMult, total: Math.max(0, Math.round((base + rings + skills) * mult * soulMult) + xb) };
+  // DL_RS_4.204：器魂领域——锤势镇魂，战力+5%
+  const fieldMult = (G.field==='qi') ? 1.05 : 1;
+  return { base, rings, skills, mult, soulMult, fieldMult, total: Math.round(Math.max(0, Math.round((base + rings + skills) * mult * soulMult) + xb) * fieldMult) };
 }
 function power(){ return powerBreakdown().total; }
 /* 战力构成面板（DL_RS_4.42）：属性面板「战力」旁的「构成」按钮，展开六项明细，
@@ -1676,13 +1734,14 @@ function togglePowerBrk(){
   if(el.style.display === 'block'){ el.style.display='none'; return; }
   const b = powerBreakdown();
   const sub = Math.round(b.base + b.rings + b.skills);
+  const _fm = (b.fieldMult && b.fieldMult!==1) ? `<br>领域 <span style="color:var(--gold)">×${b.fieldMult.toFixed(2)}</span>（器魂领域 · 锤势镇魂）` : '';
   el.innerHTML = `<div style="font-size:12px;color:var(--dim);line-height:1.8;padding:5px 8px;background:var(--panel);border:1px solid var(--line);border-radius:6px">
     <b style="color:var(--gold)">战力构成</b><br>
     基础四维 <span style="color:var(--gold)">+${Math.round(b.base)}</span>（普通人 5 + 超出部分加权）<br>
     魂环 <span style="color:var(--gold)">+${Math.round(b.rings)}</span>（年限越高越强）<br>
     魂技 <span style="color:var(--gold)">+${Math.round(b.skills)}</span>（环位越深越强）<br>
-    小计 <b style="color:var(--gold)">${sub}</b> × 境界倍率 <b>×${b.mult.toFixed(2)}</b> × 武魂品质 <b>×${b.soulMult.toFixed(2)}</b><br>
-    <b style="color:var(--gold2)">战力 = ${sub} × ${b.mult.toFixed(2)} × ${b.soulMult.toFixed(2)} = ${b.total}</b></div>`;
+    小计 <b style="color:var(--gold)">${sub}</b> × 境界倍率 <b>×${b.mult.toFixed(2)}</b> × 武魂品质 <b>×${b.soulMult.toFixed(2)}</b>${_fm}<br>
+    <b style="color:var(--gold2)">战力 = ${sub} × ${b.mult.toFixed(2)} × ${b.soulMult.toFixed(2)}${_fm?(' × '+b.fieldMult.toFixed(2)):''} = ${b.total}</b></div>`;
   el.style.display='block';
 }
 
@@ -1722,14 +1781,14 @@ function renderBoard(){
     const rank=i+1;
     const medal = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':('#'+rank);
     const qCls = 'q-'+(r.quality||'pu');
-    const godTag = r.god ? '<span class="ering purple" style="font-size:11px">'+r.god+'</span>' : '';
+    const godTag = r.god ? '<span class="ering purple" style="font-size:11px">'+escapeHtml(r.god)+'</span>' : ''; // DL_RS_4.208：渲染层转义兜底
     const aliveTag = (r.alive || r.god) ? '' : '<span class="muted" style="font-size:11px">·逝</span>'; // DL_RS_4.168：成神记录不显示「逝」，神寿无尽
     h += '<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;background:var(--cardbg,rgba(0,0,0,0.25));border-radius:8px">'
       + '<span style="width:26px;text-align:center;font-weight:700;color:var(--gold)">'+medal+'</span>'
-      + '<span style="width:64px;text-align:center"><b>'+r.score+'</b><br><span class="muted" style="font-size:10px">评分</span></span>'
-      + '<span style="width:64px;text-align:center"><b>'+r.power+'</b><br><span class="muted" style="font-size:10px">战力</span></span>'
-      + '<span style="width:40px;text-align:center"><b>'+r.lv+'</b><br><span class="muted" style="font-size:10px">级</span></span>'
-      + '<span style="flex:1;font-size:12px"><span class="atlas-item owned '+qCls+'">'+(QN[r.quality]||'?')+'</span> '+r.soul+'（先天'+r.xian+'） '+godTag+'<br><span class="muted" style="font-size:10.5px">'+(r.god?'神寿无尽':'享年'+r.age+'岁')+'</span>'+aliveTag+'</span>'
+      + '<span style="width:64px;text-align:center"><b>'+escapeHtml(r.score)+'</b><br><span class="muted" style="font-size:10px">评分</span></span>'
+      + '<span style="width:64px;text-align:center"><b>'+escapeHtml(r.power)+'</b><br><span class="muted" style="font-size:10px">战力</span></span>'
+      + '<span style="width:40px;text-align:center"><b>'+escapeHtml(r.lv)+'</b><br><span class="muted" style="font-size:10px">级</span></span>'
+      + '<span style="flex:1;font-size:12px"><span class="atlas-item owned '+qCls+'">'+(QN[r.quality]||'?')+'</span> '+escapeHtml(r.soul)+'（先天'+escapeHtml(r.xian)+'） '+godTag+'<br><span class="muted" style="font-size:10.5px">'+(r.god?'神寿无尽':'享年'+escapeHtml(r.age)+'岁')+'</span>'+aliveTag+'</span>'
       + '</div>';
   });
   h+='</div>';
@@ -1811,6 +1870,8 @@ function renderAtlas(box){
     });
     html += '</div></div>';
   }else if(ATLAS_TAB==='ach'){
+    // DL_RS_4.219：成就进度数值取整（历史最高单属性等浮点值不再带长尾巴）
+    const _fmtAch = function(n){ return (typeof n==='number') ? Math.round(n) : n; };
     // 成就页（DL_RS_4.139）：收集/生涯/战绩三类，已达成金色勾选、未达成灰色带进度
     const doneN = achDoneCount();
     html += '<div class="atlas-sec"><h4>成就（'+doneN+'/'+ACHIEVEMENTS.length+'）</h4><div class="atlas-grid">';
@@ -1819,7 +1880,7 @@ function renderAtlas(box){
       html += '<div class="atlas-qg"><span style="font-weight:700;color:var(--gold)">'+cat.name+'</span> <span class="muted">'+list.filter(function(a){return a.prog().done;}).length+'/'+list.length+'</span></div>';
       list.forEach(function(a){
         const p = a.prog();
-        html += '<div class="ach-item '+(p.done?'done':'lock')+'"><span class="ach-name">'+(p.done?'✓ ':'')+a.name+'</span><span class="ach-desc">'+a.desc+'</span><span class="ach-prog">'+p.n+'/'+p.goal+'</span></div>';
+        html += '<div class="ach-item '+(p.done?'done':'lock')+'"><span class="ach-name">'+(p.done?'✓ ':'')+a.name+'</span><span class="ach-desc">'+a.desc+'</span><span class="ach-prog">'+escapeHtml(_fmtAch(p.n))+'/'+escapeHtml(_fmtAch(p.goal))+'</span></div>'; // DL_RS_4.208：进度数值转义兜底
       });
     });
     html += '</div></div>';
@@ -2035,7 +2096,8 @@ function renderFamous(){
 function setFamous(k){ GIFT.famous = (k==='__none__') ? null : k; renderFamous(); }
 function renderGift(){
   const box=$('giftBox'); if(!box) return;
-  const allMax = LUNHUI_DEF.every(d=>lunhuiVal(d.k)>=d.max); // DL_RS_4.116：轮回殿全满才开放
+  // DL_RS_4.214：shenGan 不参与全满解锁（防老存档被锁来世天赋）；4.116 轮回殿全满才开放
+  const allMax = LUNHUI_DEF.every(d=> d.k==='shenGan' || lunhuiVal(d.k)>=d.max);
   if(!allMax){ box.style.display='none'; return; }
   box.style.display='block';
   const QNAME={fei:'废',pu:'普通',you:'优良',ding:'顶级',super:'超级',shen:'神级'};
@@ -2181,6 +2243,8 @@ $('btnAccept').onclick = ()=>{
   G._selfGod = false; G._selfGodSeed = false; G._selfGodFaith = 0; G._selfGodDao = 0; G._selfGodFinal = false;
   G._godChoosing = false; G._godWait = 0; G._mutateMode = null; G._godMode = null; G._marryMode = null; G._marryFocus = false;
   G.recentEvents = []; G._mutTriggerMult = 1; G._mutGoodBonus = 0;
+  G.field = null; G.shaKills = 0; G.shaGate = null; G.shaRound = 0; G.shaDone = false; G.shaFailed = false; G.shaRouteDone = false; // DL_RS_4.204：领域槽位（sha杀神/lan蓝银/qi器魂）+ 杀戮之都百胜计数；DL_RS_4.207：入口标记/杀戮场轮次/百胜/失败退出/地狱路完成
+  G._beastMate = false; G._beastMateAge = null; // DL_RS_4.205：化形魂兽道侣（结道侣标记 + 结缘年龄，献祭链前置）
   // DL_RS_4.97：清理旧版神劫兼容遗留字段（_godTrial/_qualNotified，无读取点）
   // DL_RS_4.116：来世天赋——指定一次高品质事件（本局必触发）
   G._giftEv = GIFT.evQ || null;
@@ -2352,7 +2416,7 @@ function renderAwaken(){
   $('awaInfo').innerHTML =
     `<span style="font-size:16px;font-weight:700;color:var(--dim)">${G.gender==='女'?'女儿身':'男儿身'}</span> · <span class="${Q_COLOR[s.quality]}" style="font-size:16px;font-weight:700">${qcn}</span>
      · ${CAT_LABEL[s.cat]} · 先天魂力 <b style="color:var(--gold2)">${s.xian}级</b>
-     · 修炼速率 ×${(CFG.soulQuality[s.quality].mult*(s.mutSpeed||1)).toFixed(2)}
+     · 综合修炼 ×${cultMultLabel().toFixed(2)}
      ${s.xian===20?'<span style="color:var(--red);font-weight:700">（先天二十级！万古无一）</span>':''}
      ${s.xian===0?'<span style="color:var(--red);font-weight:700">（先天魂力零——无法修炼，此生只能为凡人）</span>':''}`;
   $('awaDual').textContent = G.dual ? `双生武魂 · ${G.dual.name}（${Q_KEYS[G.dual.quality]}）随之觉醒！两副武魂需各自附加魂环。` : '';
@@ -2474,6 +2538,24 @@ function addLog(text, cls){
 /* DL_RS_4.140：武魂境界上限——七宝琉璃塔拥有者终身无法突破 80 级（原著设定），
    唯良性变异进化为九宝琉璃塔方可破除（变异后 g.soul.name 改变，限制自动解除）。
    在修炼结算、吸收魂环突破、大机缘加级等所有等级提升通道后统一调用兜底。 */
+// DL_RS_4.203：升级统一入口——90级后每升1级战斗四维递增：91~95级每级+1、96~98级每级+2、突破99级+3（境界越高，精进越多）
+function lvGainWithAttr(n, tag){
+  const g=G;
+  const before = Math.max(0, Math.floor(g.lv));
+  g.lv += n;
+  if(g.lv > 99) g.lv = 99;
+  capLvBySoul(g);
+  const after = Math.floor(g.lv);
+  let up = 0;
+  for(let lvl = Math.max(before, 90) + 1; lvl <= Math.min(after, 99); lvl++){
+    up += lvl >= 99 ? 3 : (lvl >= 96 ? 2 : 1);
+  }
+  if(up > 0){
+    FIGHT_ATTRS.forEach(k=>{ g.a[k] += up; });
+    addLog(`<b>封号斗罗精进</b> ${tag||''}修为每进一步，肉身与魂力随之蜕变——<b>战斗四维 +${up}</b>（91~95每级+1、96~98每级+2、突破99级+3）。`,'good');
+  }
+  return g.lv;
+}
 function capLvBySoul(g){
   if(g && g.soul && g.soul.name==='七宝琉璃塔' && g.lv >= 80){
     g.lv = 79.9; // 卡在 79 级巅峰，永远差一步登临八十级
@@ -2561,7 +2643,7 @@ function renderGame(){
   const _awakeTxt = (s.cat==='bt' && g._bodyAwake && g._bodyAwake!=='none') ? ` · <span style="color:var(--gold)">二次觉醒·${BODY_AWAKE_NAME[g._bodyAwake]}</span>` : ''; // DL_RS_4.137
   $('hudSoul').innerHTML =
     `<span class="soulname ${Q_COLOR[s.quality]}">${s.name}</span>（${Q_KEYS[s.quality]}）· 先天魂力 ${s.xian}
-     <div class="muted" style="font-size:12px">${CAT_LABEL[s.cat]} · 修炼速率 ×${(CFG.soulQuality[s.quality].mult*(s.mutSpeed||1)).toFixed(2)} · 属性倾向：${trendDesc(s.cat)}${_awakeTxt}</div>`;
+     <div class="muted" style="font-size:12px">${CAT_LABEL[s.cat]} · 综合修炼 ×${cultMultLabel().toFixed(2)} · 属性倾向：${trendDesc(s.cat)}${_awakeTxt}</div>`; // DL_RS_4.203：综合修炼含先天魂力基础值
   $('dualSoul').innerHTML = g.dual
     ? `<b style="color:var(--gold)">副武魂</b> <span class="${Q_COLOR[g.dual.quality]}">${g.dual.name}</span>（${Q_KEYS[g.dual.quality]}）`
     : '';
@@ -2578,9 +2660,20 @@ function renderGame(){
   }
   if(g.bones && g.bones.length){
     ringInfo += '<br><b style="color:#e0763a">魂骨</b> ' + g.bones.map(b=>`${b.grade}·${b.slot}${b.skill?('·'+b.skill):''}`).join(' / ');
+    // DL_RS_4.203：神装进度仅在获得神位传承后显示（godTitle 已定 / 海神九考已开启）——未得传承者不必知晓神装之事
+    if(g.godTitle || g.shenkaoN>0 || g.seaNineDone){
+      ringInfo += '<br><span class="muted" style="font-size:11px">神装进度 ' + boneSetCount() + '/6' + (g.godArmor?' · <b style="color:var(--gold)">神装已凝</b>':'') + '</span>';
+    }
   }
   if(g.extraBone){
     ringInfo += '<br><b style="color:#b45ef0">外附魂骨</b> ' + g.extraBone.name + '（' + (g.extraBone.tier||0) + '阶' + (g.extraBone.grade?('·'+g.extraBone.grade):'') + '）';
+  }
+  // DL_RS_4.204：领域行（被动标签，不占属性格子）
+  if(g.field){
+    const _fi = FIELD_INFO[g.field];
+    if(_fi) $('hudField').innerHTML = `<span>✦ 领域 · <b>${_fi.n}</b></span> <span class="muted" style="font-size:11px">${_fi.d}</span>`;
+  } else {
+    $('hudField').innerHTML = '';
   }
   $('hudRingInfo').innerHTML = ringInfo;
   // 事件链
@@ -2652,10 +2745,24 @@ function cultBase(){
   // 轮回殿「修炼天赋」加护：每点 +3% 修炼速度（初始一世艰难，轮回加护渐易）
   // DL_RS_4.64：逆天机缘「天命眷顾」——限时修炼倍率 buff（如九转金莲 ×4 持续 5 年）
   const fMult = (g._fortune && g._fortune.years>0) ? g._fortune.mult : 1;
-  return base * m * (1 + lunhuiVal('cultTop')*0.032) * fMult * (g.soul.mutSpeed || 1) * orgCultMult();
+  return base * m * (1 + lunhuiVal('cultTop')*0.032) * fMult * (g.soul.mutSpeed || 1) * orgCultMult() * (g.field==='lan' ? 1.08 : 1); // DL_RS_4.204：蓝银领域——草木之道与天地共鸣，修炼速度+8%
 }
 function tierMult(lv){
   return CFG.cult.tierMult[Math.min(Math.floor(lv/10),9)];
+}
+// DL_RS_4.203：综合修炼系数（HUD/觉醒页展示）——含先天魂力等基础值与品质倍率，替代原"品质倍率"标签
+function cultMultLabel(){
+  const g=G, a=g.a;
+  if(g.soul.xian === 0) return 0; // 先天魂力 0：无法修炼
+  let base = CFG.cult.base + g.soul.xian*CFG.cult.wXian + (isFinite(a.体质)?a.体质:0)*CFG.cult.wBody + (isFinite(a.悟性)?a.悟性:0)*CFG.cult.wWis + (isFinite(a.家境)?a.家境:0)*CFG.cult.wFam + (isFinite(g.cultBonus)?g.cultBonus:0);
+  if(g.lv < 10 && g.soul.quality==='fei') base *= 0.10;
+  let m = (CFG.soulQuality[g.soul.quality] || {}).mult || 1.0;
+  if(g._youBreak){ m = 1.08; if(g.lv >= 90) base *= 0.45; }
+  else {
+    if(g.soul.quality==='pu' && g.lv>=40) base *= 0.35;
+    if(g.soul.quality==='you' && g.lv>=70) base *= 0.32;
+  }
+  return base * m * (g.soul.mutSpeed || 1) * (g.field==='lan' ? 1.08 : 1); // DL_RS_4.204：蓝银领域修炼速度+8%（HUD 与实际同步）
 }
 /* 修炼年龄衰减（DL_RS_4.6）：50 岁前为修炼黄金期，无衰减；
    50 岁后年龄越大修炼越艰难（线性递减至 0.65 封底）——
@@ -2683,7 +2790,7 @@ function levelMult(lv){
   }
   // DL_RS_4.164：原著98级封号斗罗巅峰→99级极限斗罗是天堑，98级修炼速度按99级衰减（两级衰减）
   const eff = (f === 98) ? 99 : f;
-  return Math.max(0.05, 1.0 - (0.52 + (eff-90)*0.09)*r); // DL_RS_4.198：90级后衰减基数 0.48→0.52、斜率 0.085→0.09（寿元回归300岁后三次对冲，目标满加成15~20%）
+  return Math.max(0.05, 1.0 - (0.52 + (eff-90)*0.105)*r); // DL_RS_4.216e：斜率 0.102→0.105（感应对总成神率边际极小，闸门在 99 级达成率；0.105 期望成神均值 ~17%）
 }
 function atGate(){
   const g=G;
@@ -2697,7 +2804,7 @@ function trendGrow(coef){
 }
 
 /* 大境界突破（DL_RS_4.47）：每 10 级关口（10/20/…/90）修炼到位即需猎魂，
-   吸收魂环后自然突破大境界——晋入新境界 + 全属性+3 仪式日志（不再设额外突破判定）。 */
+   吸收魂环后自然突破大境界——晋入新境界 + 随境界递增的战斗四维增幅仪式日志（不再设额外突破判定）。 */
 const BREAK_TEXT = [
   '魂力初凝，跨入魂师之列！',
   '魂力鼓荡，晋入大魂师之境！',
@@ -2715,7 +2822,7 @@ function startYear(){
   // 寿元将尽提示
   const cap = lifeCapOf();
   if(cap - g.age < 10){ addLog(`<b>你的寿元已所剩无几（${cap-g.age} 年）</b>，若不能在寿尽前突破更高境界，此生便到此为止。`, 'bad'); }
-  // DL_RS_4.47：修炼到关口即需猎魂——吸收魂环后自然突破大境界（取消额外突破判定，遵循原著"修炼→猎魂→吸收→突破"）
+  // DL_RS_4.47：修炼到关口即需猎魂——吸收魂环后自然突破大境界（突破增幅随境界递增，遵循原著"修炼→猎魂→吸收→突破"）
   if(atGate() && g.rings.length < 9){
     openHuntUI(); return;
   }
@@ -2988,7 +3095,7 @@ function doAction(kind){
   const lm = levelMult(g.lv);
   let gain = cultBase() * tierMult(g.lv) * mult * am * lm;
   // 关口截断（DL_RS_4.43）：魂力最多推进到最早未猎魂的大境界关口，一次行动不可连跨多个关口——
-  // 先突破判定（成功全属性+3）、猎魂晋境后，来年方可继续修炼越过下一关口
+  // 先突破判定（成功战斗四维随境界+1~4）、猎魂晋境后，来年方可继续修炼越过下一关口
   if(g.rings.length < 9){
     const nextGate = CFG.ring.gates[g.rings.length];
     if(Math.floor(g.lv) < nextGate && g.lv + gain >= nextGate){
@@ -3000,10 +3107,7 @@ function doAction(kind){
   if(am < 1) pen.push(`50岁后修炼衰减 ×${am.toFixed(2)}`);
   if(lm < 1) pen.push(`境界衰减 ×${lm.toFixed(2)}`);
   if(gain > 0) addLog(`<b>${kind}</b> 魂力 +${rr(gain)}（${Math.floor(g.lv)}级 → ${Math.floor(g.lv+gain)}级）${pen.length?`<span class="muted">（${pen.join('，')}）</span>`:''}`, 'sys');
-  g.lv += gain;
-  // 原著：99 级极限斗罗为凡人之巅，唯获神位传承并完成神考方可借神光登临 100 级（ascend 另行设置）
-  if(g.lv > 99) g.lv = 99;
-  capLvBySoul(g); // DL_RS_4.140：七宝琉璃塔 79 级封顶
+  lvGainWithAttr(gain); // DL_RS_4.203：90级后每升1级战斗四维+1（截断99/七宝封顶在内部处理）
 
   if(kind==='苦修'){
     a.体质+=0.1; a.悟性+=gainWuSmall(0.05); trendGrow(0.4);
@@ -3074,7 +3178,7 @@ function doAction(kind){
     // 只推进到最早未猎魂的关口，逐关突破判定 + 强制猎魂（DL_RS_4.43：与 startYear 共用 tryBreak）
     let needIdx = -1;
     for(let i=0;i<9;i++){ if(floorLv >= CFG.ring.gates[i] && g.rings.length <= i){ needIdx = i; break; } }
-    // DL_RS_4.47：到关口直接猎魂，吸收魂环后自然突破（取消额外突破判定）
+    // DL_RS_4.47：到关口直接猎魂，吸收魂环后自然突破（增幅随境界递增）
     if(needIdx >= 0){
       // DL_RS_4.169：先天魂力0级者无法引气入体，不能吸收魂环，强行猎魂只会经脉寸断
       if(g.soul && g.soul.xian===0){ addLog('<b>无法猎魂：</b>你先天魂力为0，无法引气入体，纵然猎得魂兽也无法吸收魂环，只能黯然离去。','bad'); }
@@ -3316,12 +3420,21 @@ function joinOrg(org){
 }
 function gainMaster(){
   const g=G;
+  // DL_RS_4.218b：拜师看天赋——废武魂不被任何强者收徒（名师见之摇头而去）；
+  // 普通武魂只配低阶名师，优良武魂拜魂圣/长老，顶级+武魂方可遇隐世封号斗罗与武魂殿红衣主教（原著武魂殿本有先天魂力门槛）
+  const qo=['fei','pu','you','ding','super','shen'];
+  const qIdx = qo.indexOf(g.soul.quality);
+  if(qIdx < 1){
+    addLog('曾有名师路过，见你武魂废劣，摇头而去——天下强者，无人愿收废武魂为徒。','note');
+    return;
+  }
   // 敌对势力检查：史莱克学院/天斗皇家学院/星罗帝国军方成员不能拜师武魂殿
   const hostileOrgs = ['史莱克学院','天斗皇家学院','星罗帝国军方'];
-  let pool = ['一位魂圣强者','某宗门长老','隐世的老封号斗罗'];
-  if(hostileOrgs.indexOf(g.org)<0){
-    pool.push('武魂殿红衣主教');
-  }
+  let pool;
+  if(qIdx >= 3) pool = ['一位魂圣强者','某宗门长老','隐世的老封号斗罗'];
+  else if(qIdx === 2) pool = ['一位魂圣强者','某宗门长老'];
+  else pool = ['城中魂王','宗门执事'];
+  if(qIdx >= 3 && hostileOrgs.indexOf(g.org)<0) pool.push('武魂殿红衣主教');
   const m = pick(pool);
   g.master = m;
   g.cultBonus += 1.2;
@@ -3335,6 +3448,7 @@ function huntSuccessP(idx, choice){
   p -= diff;
   p += lunhuiVal('huntTop')*0.015; // 轮回殿「猎魂福缘」加护：每点 +1.5% 猎魂成功率
   p += stanceBonus().win; // DL_RS_4.111：战斗姿态修正
+  if(G.field==='sha') p += 0.08; // DL_RS_4.204：杀神领域——杀意压服魂兽，猎魂成功率+8%
   return clamp(p, 0.05, 0.98);
 }
 function huntDeathP(idx, choice){
@@ -3464,7 +3578,12 @@ function ringYear(idx, choice, prevArr){
   const mul = choice==='稳'?0.7 : choice==='中'?1.0 : 1.4;
   let y = Math.round(rnd(base[0], base[1]) * mul);
   const arr = prevArr || G.rings;
-  const prev = (arr && arr.length) ? arr[arr.length-1].y : 0;
+  // DL_RS_4.221：上一环锁定跳过馈赠环（献祭/事件直接给的环）——10 万年献祭环不把后续猎魂下限锁到 10.5 万年，
+  // 否则后续环位全部十万年+（数值膨胀且自动模式按预估档位判断会低估实际年限引发反噬螺旋）
+  let prev = 0;
+  if(arr && arr.length){
+    for(let _i=arr.length-1; _i>=0; _i--){ if(arr[_i] && arr[_i].choice !== '献祭'){ prev = arr[_i].y; break; } }
+  }
   if(prev > 0) y = Math.max(y, Math.round(prev * 1.05));
   if(idx===0 && G && hasFate(G,'ring')) y = Math.round(y*1.5); // 命格·机缘深厚：第一魂环年份+50%
   return y;
@@ -3572,12 +3691,14 @@ function resolveHunt(choice, idx){
     g.lv = Math.min(Math.floor(g.lv) + 1, 99); // 99 级为凡人之巅，100 级唯神考+传承 asc 授予
     if(g.rings.length===9){ g.lv=Math.max(g.lv,90); }
     capLvBySoul(g); // DL_RS_4.140：七宝琉璃塔吸收魂环亦无法突破 80 级
-    // DL_RS_4.47：吸收魂环即突破大境界——晋入新境界 + 全属性+3 仪式（无需额外突破判定）
+    // DL_RS_4.203：吸收魂环即突破大境界——晋入新境界 + 战斗四维增幅仪式（无需额外突破判定）
+    // 增幅随境界递增（1-3环+1 / 4-6环+2 / 7-8环+3 / 封号第9环+4）——高境界突破收益远大于低境界，凸显境界差距
     {
       const bIdx = g.rings.length - 1;
-      FIGHT_ATTRS.forEach(k=>{ g.a[k] += 3; });
+      const _bAdd = g.rings.length >= 9 ? 4 : (g.rings.length >= 7 ? 3 : (g.rings.length >= 4 ? 2 : 1));
+      FIGHT_ATTRS.forEach(k=>{ g.a[k] += _bAdd; });
       g.a.家境 = Math.max(g.a.家境, 15 + g.rings.length*4); // DL_RS_4.103：修为提升家境保底（名望随境界水涨船高）
-      addLog(`<b>${TIER_NAMES[bIdx+1]}突破！</b>${BREAK_TEXT[bIdx]||'魂力蜕变，境界升华。'}（全属性 +3）`,'good');
+      addLog(`<b>${TIER_NAMES[bIdx+1]}突破！</b>${BREAK_TEXT[bIdx]||'魂力蜕变，境界升华。'}（战斗四维 +${_bAdd}）`,'good');
     }
     extraBoneEvolve(); // DL_RS_4.110：外附魂骨随大境界突破而进化
     tryBodyAwake(g, g.rings.length-1); // DL_RS_4.137：本体武魂二次觉醒判定（吸收魂环+大境界突破后）
@@ -3687,6 +3808,7 @@ function godAvail(a){
   const _a = a || (G && G.a) || {}; // DL_RS_4.178：默认使用G.a，防止无参数调用时报错
   const list = Object.keys(GODS).filter(k=>{
     if(WOMAN_GODS.indexOf(k)>=0 && gd!=='女') return false; // 女性专属神位：仅女性可承接
+    if(k==='修罗神' && G.field!=='sha') return false; // DL_RS_4.207：杀神领域为修罗神传承前置——无杀神领域者，神位传承中不会出现修罗神
     const r=GODS[k].req; return Object.keys(r).every(key=> ((key==='战力')? pw : (_a[key]||0)) >= r[key]);
   });
   // DL_RS_4.200：名人传承定向——原著神位达标时提到最前（高档首推）
@@ -4011,6 +4133,16 @@ function ascend(){
       ? {1:[18,14,18,14], 2:[22,18,22,18], 3:[28,24,28,24], 4:[36,30,36,30]}[g.god.tier]
       : [18,14,18,14];
   a.力量 += tierB[0]; a.敏捷 += tierB[1]; a.体质 += tierB[2]; a.精神力 += tierB[3];
+  // DL_RS_4.203：神装凝聚——原著需集齐六块魂骨方能凝聚神装（魂骨不全不影响成神，仅无神装升华）
+  if(boneSetComplete()){
+    g.godArmor = true;
+    const armorB = g._selfGod ? [20,16,20,16] : (g.god && g.god.tier) ? {1:[8,6,8,6],2:[10,8,10,8],3:[14,12,14,12],4:[20,16,20,16]}[g.god.tier] : [8,6,8,6];
+    a.力量 += armorB[0]; a.敏捷 += armorB[1]; a.体质 += armorB[2]; a.精神力 += armorB[3];
+    if(g.achievements.indexOf('神装凝聚')<0) g.achievements.push('神装凝聚');
+    addLog(`六块魂骨共鸣升腾，<b>神装凝聚</b>！${g.godTitle||'神位'}之力与魂骨完美融合，四维再上一层（力量+${armorB[0]} 敏捷+${armorB[1]} 体质+${armorB[2]} 精神力+${armorB[3]}）！`,'good');
+  } else {
+    addLog('魂骨未集齐六块，未能凝聚神装——神途虽成，略有缺憾。','note');
+  }
   // 凝聚神装时，全部魂环被神性洗炼至神级（≥20 万年），并按增幅档位差额补发四维
   const boostArr = (arr)=>{ if(!arr) return; arr.forEach(r=>{ const oldB = ringAttrBonus(r.y); r.y = Math.max(r.y, 200000); const newB = ringAttrBonus(r.y); ['力量','敏捷','体质','精神力'].forEach((k,i)=>{ const d = newB[i]-oldB[i]; if(d>0) a[k] += d; }); }); };
   boostArr(g.rings); boostArr(g.dualRings);
@@ -4105,6 +4237,9 @@ function passReq(e){
   if(r.prestige && g.prestige < r.prestige) return false;
   if(r.money && g.money < r.money) return false;
   if(r.rings && g.rings.length < r.rings) return false;
+  if(r.shaKills && (g.shaKills||0) < r.shaKills) return false; // DL_RS_4.204：杀神领域前置——杀戮之都百胜（杀够100场）
+  if(r.beastMate && !g._beastMate) return false; // DL_RS_4.205：献祭链——须已结化形魂兽道侣
+  if(r.beastMateAfter && (g._beastMateAge==null || g.age - g._beastMateAge < r.beastMateAfter)) return false; // DL_RS_4.205：结道侣满 N 年后才触发生死危机
   if(r.hasChild && !(g.children>0)) return false;
   if(r.quality && g.soul.quality!==r.quality) return false;      // 武魂品质
   if(r.lifeLeft){ const _left = Math.max(0, (g.lifeCap||0) - g.age); if(_left >= r.lifeLeft) return false; } // DL_RS_4.203：弥留类事件——剩余寿元不足 lifeLeft 年才触发（防"离寿尽还很远却触发弥留事件"的违和感）
@@ -4191,6 +4326,27 @@ function triggerEvent(){
     showEvent(buildOrgSelectEvent());
     return;
   }
+  // DL_RS_4.207：杀戮之都完整事件链——①寻入口（60级+，终生一次）→②地狱杀戮场百连胜（每年强制，四轮难度递增，累计100人）→③地狱路（强制，得杀神领域）
+  // ① 寻找入口：基础概率 1%（DL_RS_4.209：3%→1%），天命加成每25点+1%，上限 5%；60级+，终生一次；找到后每年强制赴地狱杀戮场
+  if(g.lv>=60 && !g.shaGate && Math.random() < Math.min(0.05, 0.01 + (g.a.天命||0)*0.0004)){
+    const _evE = EVENTS.filter(e=>e.name==='杀戮之都·入口')[0];
+    if(_evE){ if(_evE.once) g.onceUsed[_evE.name]=true; showEvent(_evE); return; }
+  }
+  // ② 地狱杀戮场：入口已开且未失败且未百胜 → 每年强制触发（连续四轮，难度累增）
+  if(g.shaGate && !g.shaFailed && (g.shaKills||0)<100){
+    const _evA = EVENTS.filter(e=>e.name==='地狱杀戮场')[0];
+    if(_evA){ showEvent(_evA); return; }
+  }
+  // 生死危机·献祭：结道侣满2年、30级后年率55%（2年内约80%触发），触发后不复现
+  if(g._beastMate && g.age - g._beastMateAge >= 2 && g.lv>=30 && Math.random()<0.30 && !g.onceUsed['生死危机·献祭']){
+    const _evS = EVENTS.filter(e=>e.name==='生死危机·献祭')[0];
+    if(_evS){ g.onceUsed[_evS.name]=true; showEvent(_evS); return; }
+  }
+  // ③ 地狱路：百胜后强制触发一次（触发即标记完成，不复现；失败退出则链终）
+  if((g.shaKills||0)>=100 && !g.shaFailed && !g.shaRouteDone){
+    const _evD = EVENTS.filter(e=>e.name==='杀戮之都·地狱路')[0];
+    if(_evD){ g.shaRouteDone = true; if(_evD.once) g.onceUsed[_evD.name]=true; showEvent(_evD); return; }
+  }
   if(g.age>=16 && g.age<45 && !g.spouse && Math.random()<0.10){ marriage(); }
   // 事件链：激活中的链 → 下一步骤强制出现，不可跳过
   if(g.chain){
@@ -4199,11 +4355,11 @@ function triggerEvent(){
     g.chain = null;
   }
 // 随机品质抽取（DL_RS_4.132 六档梯级区间法：白>黄>紫>黑>红>金，对应魂环色；
-// 金/红/黑为轮回殿加点区间（满加成后黑11%/红6.5%/金5.5%，仍维持梯级），
+// 金/红/黑为轮回殿加点区间（满加成后黑14%/红6.5%/金3.0%，仍维持梯级；4.216 金加点 0.1%→0.05%），
 // 黄>紫为固定宽度保证 0 加成与满加成均为严格递减分布）
 const lhE = lunhuiVal('epicEv')*0.001;    // 黑事件 +0.1%/点（上限 +6%）
 const lhL = lunhuiVal('legendEv')*0.001;  // 红事件 +0.1%/点（上限 +5%）
-const lhM = lunhuiVal('mythicEv')*0.001;  // 金事件 +0.1%/点（上限 +5%）
+const lhM = lunhuiVal('mythicEv')*0.0005; // 金事件 +0.05%/点（上限 +2.5%，4.216 与红拉开档次）
 const wM = 0.005 + lhM;                   // 神话（金）区间 0.5% 起步
 const wL = 0.015 + lhL;                   // 传说（红）区间 1.5% 起步
 const wE = 0.08 + lhE;                    // 史诗（黑）区间 8% 起步（满加成 14%）
@@ -4229,6 +4385,7 @@ let pb = EVENTS.filter(e=>e && (e.art ? true : e.band===band) && e.q===qq // DL_
   && !(e.chainId==='zichuang' && e.chainStart)  // DL_RS_4.171：自创神位链起点只由「自创神位」按钮触发，不可随机抽取
 && !(e.chainId && e.chainStart && g.chainDone && g.chainDone[e.chainId])  // 链起点 once
 && (!e.needOrg || g.org===e.needOrg)
+&& !e._manual // DL_RS_4.206：独立判定事件（杀戮之都/地狱路/生死危机）不参与品质池，节奏由 triggerEvent 独立控制
 && passReq(e));
 // DL_RS_4.200：名人模板事件权重提升（海神岛机缘——按模板配置放大池内权重，用副本避免污染事件表）
 // 名人「神位传承」不参与随机抽取（触发完全由 99 级钩子控制，保证成神率可校准）；
@@ -4270,7 +4427,7 @@ pool = buildEp(q);
 }
 }
 }
-  if(giftForced || (pool.length && Math.random() < (0.65 + (G && hasFate(G,'event') ? 0.10 : 0)))){ // 命格·福缘深厚：事件触发率+10%；来世天赋指定事件强制触发
+  if(giftForced || (pool.length && Math.random() < (0.60 + (G && hasFate(G,'event') ? 0.10 : 0)))){ // DL_RS_4.206：年度触发率 0.65->0.60 微降；命格·福缘深厚+10%；来世天赋指定事件强制触发
     if(giftForced) G._giftEv = null; // DL_RS_4.116：指定事件成功触发才消耗
     const ev = pickWeighted(pool);
     if(ev.once) g.onceUsed[ev.name]=true;
@@ -4408,6 +4565,7 @@ function advanceChain(ev, opt){
       }
       g.achievements.push('事件链·'+def.name);
       addLog(`<b>事件链「${def.name}」全部完成！</b>一段完整的机缘就此落下帷幕。`,'good');
+      if(ev.chainId==='haotian') setField('qi', '乱披风锤法大成，锤势自成领域'); // DL_RS_4.204：昊天锤乱披风大成 → 器魂领域
     }
   }
 }
@@ -4479,6 +4637,86 @@ function resolveEvent(ev, idx){
     clampAll();
     endYear();
     return;
+  }
+  // DL_RS_4.205：化形魂兽之缘——精神力≥45 识别真身，结为道侣（触发后续生死危机·献祭链）
+  if(ev.type==='beastMate'){
+    if(o._recognize && a.精神力>=45){
+      const _bn = ['小柔','小七','阿紫','青儿','雪儿','月影','灵溪','瑶瑶'][Math.floor(Math.random()*8)];
+      g._beastMate = true; g._beastMateAge = g.age;
+      g.spouse = '化形魂兽·'+_bn;
+      addLog(`<b>识破真身！</b>你凝神细看，竟看穿了她化形魂兽的身份——她坦然承认，眼中情意渐生，自此与你结为道侣「${g.spouse}」。你心知这份情缘福祸难料，却也不枉此生。`,'good');
+      if(g.achievements.indexOf('化形魂兽之缘')<0) g.achievements.push('化形魂兽之缘');
+    } else {
+      addLog(o._failTxt || '你只当她是个寻常女子，寒暄几句便各奔东西。','note');
+    }
+    if(o.eff) Object.keys(o.eff).forEach(k=>{ let v=o.eff[k]; if(k==='悟性' && v>0) v=gainWu(v); a[k]+=v; addLog(`${k} +${v}`,'sys'); });
+    advanceChain(ev); clampAll(); endYear(); return;
+  }
+  // DL_RS_4.205：生死危机·献祭——接受献祭得保底十万年魂环（无视年限上限）+双魂技；寿元-30、道侣消失
+  if(ev.type==='beastSac'){
+    if(o._sacrifice){
+      const idx2 = Math.min((g.rings||[]).length, 8);
+      const _s1 = genSkill(idx2, 'shou', '献祭魂兽').replace(/^第[一二三四五六七八九十]+·/,'');
+      const _s2 = genSkill(idx2, 'shou', '魂兽之力').replace(/^第[一二三四五六七八九十]+·/,'');
+      const _sk2 = '双·'+_s1+' / '+_s2;
+      g.rings.push({q:'shen', skill:_sk2, choice:'献祭', y:100000, beast:'化形魂兽献祭', ele:'献祭之力', sync:true});
+      g._beastMate = false; g._beastMateAge = null;
+      g.spouse = '';
+      g._lifeCut = (g._lifeCut||0) + 30;
+      addLog(`<b>十万年献祭！</b>她将毕生魂力凝入你的第 ${idx2+1} 个魂环——<b>十万年魂环【${_sk2}】</b>降临！她的气息自此消散于天地之间，你寿元永久 -30 年。`,'good');
+      showToast('十万年魂环 · 双魂技', '#ff6b6b');
+      if(g.achievements.indexOf('十万年献祭')<0) g.achievements.push('十万年献祭');
+    } else {
+      const o2 = ev.opts[1];
+      if(o2 && o2.roll){
+        if(o2.need && o2.need.attr && Object.keys(o2.need.attr).some(k=>a[k] < o2.need.attr[k])){
+          addLog('你欲拼死一战，却力有不逮，只能眼睁睁看着她落入敌手……','note');
+          g._beastMate = false; g.spouse = ''; g._beastMateAge = null;
+        } else {
+          const p = (o2.roll.chance||0) + (o2.roll.extra||0);
+          if(Math.random() < p){
+            addLog(`<b>血战突围！</b>${o2.roll.succText||'你浴血杀出重围。'}`,'good');
+            if(o2.roll.succ) Object.keys(o2.roll.succ).forEach(k=>{ let v=o2.roll.succ[k]; if(k==='悟性' && v>0) v=gainWu(v); a[k]+=v; });
+            addLog('她重伤化为魂兽本体远遁深山，此缘已断。','note');
+            g._beastMate = false; g.spouse = ''; g._beastMateAge = null;
+          } else {
+            if(o2.roll.death && Math.random() < o2.roll.death){ die(o2.roll.deathText||'力战而亡'); return; }
+            addLog(`<b>失败：</b>${o2.roll.failText||'敌手太强，你重伤败退。'}`,'bad');
+            if(o2.roll.fail) Object.keys(o2.roll.fail).forEach(k=>{ a[k]+=o2.roll.fail[k]; });
+            addLog('你眼睁睁看着她被武魂殿强者带走，自此下落不明。','note');
+            g._beastMate = false; g.spouse = ''; g._beastMateAge = null;
+          }
+        }
+      }
+    }
+    advanceChain(ev); clampAll(); endYear(); return;
+  }
+  // DL_RS_4.207：杀戮之都事件链——入口确认 + 地狱杀戮场动态判定（四轮难度递增 85%/72%/58%/45%，失败削属性、15%战死、退出）
+  if(o._shaEnter){
+    g.shaGate = true;
+    addLog('<b>杀戮之都！</b>血色城门在身后轰然关闭——你已置身杀戮之都。此后每年需赴地狱杀戮场：连续四轮、难度累增，累计战胜百人方有资格闯地狱路；败则重创退出，再无重来。','good');
+    advanceChain(ev); clampAll(); endYear(); return;
+  }
+  if(o._shaArena){
+    const _round = g.shaRound || 0;
+    const _chance = [0.85, 0.72, 0.58, 0.45][_round] || 0.45; // 四轮难度递增
+    if(Math.random() < _chance){
+      g.shaKills = (g.shaKills||0) + 25;
+      g.shaRound = _round + 1;
+      if(g.shaKills >= 100){
+        g.shaDone = true;
+        addLog(`<b>第 ${_round+1} 轮获胜，百胜达成！</b>连续四次杀穿地狱杀戮场，累计战胜百人——地狱路入口为你洞开，杀神领域在前方等你！`,'good');
+        showToast('百胜达成 · 地狱路开启', '#ff6b6b');
+      } else {
+        addLog(`<b>第 ${_round+1} 轮获胜！</b>（约${Math.round(_chance*100)}%胜率）你于百人围杀中杀出一条血路，累计战胜 ${g.shaKills}/100 人。`,'good');
+      }
+    } else {
+      if(Math.random() < 0.15){ die('战死于地狱杀戮场'); return; }
+      g.a.力量 = Math.max(1, (g.a.力量||0)-4); g.a.体质 = Math.max(1, (g.a.体质||0)-4); g.a.敏捷 = Math.max(1, (g.a.敏捷||0)-4);
+      g.shaFailed = true;
+      addLog('<b>败北！</b>你在地狱杀戮场中力战不敌，侥幸捡回性命——力量-4、体质-4、敏捷-4，杀戮之都的机缘与你无缘，你被逐出，此生不可再入。','bad');
+    }
+    advanceChain(ev); clampAll(); endYear(); return;
   }
   let _godBlock = false; // DL_RS_4.95（全面审查）：神位传承事件承接后三档选择占用本年，跳过 endYear 防止被年度循环覆盖
   // 特殊事件：武魂变异（变异后先天魂力压回新品质允许区间）
@@ -4615,7 +4853,7 @@ function resolveEvent(ev, idx){
         //（原逻辑会被优良武魂资质上限拉回导致等级倒退，且与"无资质硬上限、大机缘破关"设定相悖；99 级为凡人之巅）
         // DL_RS_4.169：先天魂力0级者无法引气入体，纵然有神光灌顶也无法凝聚魂力，只能增强肉身
         if(g.soul && g.soul.xian===0){ addLog('<b>神光灌体，却无法凝聚魂力——</b>你先天魂力为0，无法引气入体，神光只能淬炼你的肉身与精神。体质+8，精神力+8。','good'); a.体质+=8; a.精神力+=8; }
-        else { g.lv = Math.min(Math.max(g.lv + o.eff[k], g.lv), 99); capLvBySoul(g); addLog(`魂力等级 +${o.eff[k]}！`,'good'); } }
+        else { lvGainWithAttr(o.eff[k]); addLog(`魂力等级 +${o.eff[k]}！`,'good'); } }
       else if(k==='youBreak'){
         // 武魂升华（大机缘）：修炼倍率跃升至 1.08（DL_RS_4.6 仅略高于优良，杜绝膨胀）、寿元突破人类极限、
         // 可冲击封号斗罗 90 级；90 级后修炼另有额外瓶颈 ×0.45（勉强到 90，再想寸进极为困难）
@@ -4632,7 +4870,7 @@ function resolveEvent(ev, idx){
           const ng = CFG.ring.gates[g.rings.length];
           if(Math.floor(g.lv) < ng && g.lv + cg >= ng){ cg = Math.max(0, ng - g.lv); }
         }
-        if(cg > 0){ g.lv += cg; if(g.lv>99) g.lv=99; capLvBySoul(g); addLog(`<b>修为大进</b> 考核磨砺魂力沉淀，魂力 +${rr(cg)}（${Math.floor(g.lv-cg)}级 → ${Math.floor(g.lv)}级）`,'good'); }
+        if(cg > 0){ lvGainWithAttr(cg, '考核磨砺'); addLog(`<b>修为大进</b> 考核磨砺魂力沉淀，魂力 +${rr(cg)}（${Math.floor(g.lv-cg)}级 → ${Math.floor(g.lv)}级）`,'good'); }
       }
       else { let v=Math.round(o.eff[k]*m*orgTrend(k)); if(k==='悟性' && v>0) v=gainWu(v); a[k]+=v; addLog(`${k} ${v>0?'+':''}${v}${synTxt}`,'sys'); }
     });
@@ -4681,12 +4919,15 @@ function resolveEvent(ev, idx){
     if(Math.random()<p){
       addLog(`<b>成功：</b>${o.roll.succText||'你赌赢了。'}`,'good');
       if(o.roll.succ) Object.keys(o.roll.succ).forEach(k=>{ if(k==='金魂币'){g.money+=o.roll.succ[k];} else if(k==='子嗣'){ g.children=Math.max(0,(g.children||0)+o.roll.succ[k]); } else { let v=o.roll.succ[k]; if(k==='悟性' && v>0) v=gainWu(v); a[k]+=v; } });
+      // DL_RS_4.207：百胜累计改由「地狱杀戮场」事件链动态判定（四轮×25人），此处无 _shaKills 事件残留
     } else {
       rollWin = false;
       addLog(`<b>失败：</b>${o.roll.failText||'代价沉重。'}`,'bad');
       if(o.roll.fail) Object.keys(o.roll.fail).forEach(k=>{ if(k==='金魂币'){g.money+=o.roll.fail[k];} else if(k==='子嗣'){ g.children=Math.max(0,(g.children||0)+o.roll.fail[k]); addLog(`子嗣 ${o.roll.fail[k]>0?'+':''}${o.roll.fail[k]}。`,'sys'); } else if(k==='evClear'){ if(g.evFlags) delete g.evFlags[o.roll.fail.evClear]; } else a[k]+=o.roll.fail[k]; });
       if(o.roll.death && Math.random()<o.roll.death){ die(o.roll.deathText||'死于非命'); return; }
     }
+    // DL_RS_4.204：杀神领域——地狱路闯关成功（roll 成功或无条件）
+    if(ev._fieldOnSucc && rollWin) setField(ev._fieldOnSucc, '杀戮神眷降临');
   }
   // DL_RS_4.64：逆天机缘「天命眷顾」buff——roll 失败则机缘落空（不给 buff）；成功/无 roll 则生效。
   // 多次机缘叠乘倍率、取更长时长（天命主角之运，机缘可叠加）
@@ -4698,17 +4939,21 @@ function resolveEvent(ev, idx){
     addLog(`<b>天命眷顾！</b>${o.heroTxt||''}${o.fortune.years} 年内修炼速度 <b>×${g._fortune.mult}</b>——你仿佛被命运选中，直奔传说而去！`,'good');
   }
   // DL_RS_4.170：自创神位链终点结算——四步完成后判定神位等级并成神
-  // DL_RS_4.203：凝聚非必成——10% 成功（原著自创神位需数百年信仰积累、万中无一；65% 过高致名人局成神率 77-100% 超目标 20-30%）；失败神格崩散（道基尽毁，此生无望）
+  // DL_RS_4.203：凝聚非必成——4% 成功（原著自创神位需数百年信仰积累、万中无一）
+  // DL_RS_4.210：失败改为重伤不死可重试——前 3 次失败重创（体质-40、悟性-8~15）但保住性命、保留再冲击资格；第 4 次失败才身死道消（最多 3 次豁免）
   if(o.custom==='selfGodFinal'){
     if(Math.random() < 0.04){ selfGodFinal(); }
     else {
       G.a.体质 = Math.max(0, G.a.体质-40);
       const _sfw = ri(8,15); G.a.悟性 = Math.max(1, G.a.悟性-_sfw);
-      addLog('<b>神位凝聚失败！</b>信仰与大道终未达临界，神格崩散，天地法则反噬加身——你道基尽毁（体质-40、悟性-'+_sfw+'），此生再无凝聚神格之望。','bad');
-      if(Math.random() < 0.3){ die('神位凝聚失败，身死道消'); return; }
+      G._selfGodFail = (G._selfGodFail||0) + 1;
+      if(G._selfGodFail >= 4){
+        addLog('<b>神位凝聚失败！</b>信仰与大道终未达临界，神格崩散，天地法则彻底反噬——你道基尽毁（体质-40、悟性-'+_sfw+'），此生再无凝聚神格之望，身死道消。','bad');
+        die('神位凝聚失败，身死道消'); return;
+      }
+      addLog('<b>神位凝聚失败！</b>信仰与大道终未达临界，神格崩散，天地法则反噬加身——你身受重创（体质-40、悟性-'+_sfw+'），道基受损却仍有一线生机。这已是第 <b>'+G._selfGodFail+'/3</b> 次失败，再有失败，恐再无重来之日。','bad');
       clampAll();
-      const _ab = $('actionBtns');
-      if(_ab){ [..._ab.querySelectorAll('button')].forEach(_b=>{ if(_b.textContent.includes('自创神位')){ _b.disabled = true; _b.className = 'btn btn-locked'; _b.textContent = '自创神位（已倾覆）'; } }); }
+      endYear(); // DL_RS_4.210b：清事件框并推进年份（4.152 同款防残留；不 return，走正常年度收尾）
     }
     return;
   }
@@ -4935,7 +5180,8 @@ function endYear(){
     const senseChance = (g._fortune && g._fortune.years>0) ? Math.min(0.5, senseQ*4.0*lvFactor) : Math.max(0.0002, senseQ*0.2*pwCoef*lvFactor) // DL_RS_4.203：senseQ×0.2（顶级武魂感应 ~0.0002/年，普通局感应线 <2%）;
     // DL_RS_4.147：海神眷顾——九考全通且有轮回加护者神祇常伴，神位感应率 ×6（海神九考为稳定成神路径，99 级另有保底）
     const _seaOK = g.seaNineDone && LUNHUI_DEF.some(function(d){ return lunhuiVal(d.k)>0; });
-    const senseFinal = _seaOK ? Math.min(0.5, senseChance*6) : senseChance;
+    // DL_RS_4.213：轮回殿「神位感应」加点直加年感应率（每点 +0.015%/年，50 点 +0.75%/年；0.02% 时 99 级转化 82% 偏高，微降留悬念），封顶 0.5
+    const senseFinal = Math.min(0.5, (_seaOK ? Math.min(0.5, senseChance*6) : senseChance) + (lunhuiVal('shenGan')||0)*0.00010); // 4.216d 感应 0.00015→0.00010
     if(Math.random() < senseFinal){
       g._godSensePending = true;
     }
@@ -5049,7 +5295,11 @@ function maxRingCap(idx){
   const q = (G.soul && G.soul.quality) ? (qm[G.soul.quality]||1.0) : 1.0;
   // 硬上限按比例调整——第9环最高30万年（约为实际可猎最高14万年的2倍），超越需赌「超越极限」
   const hardCap = [1000,2000,5000,15000,30000,60000,100000,150000,300000][Math.min(idx,8)];
-  return Math.min(hardCap, Math.round(base * m * q));
+  let cap = Math.min(hardCap, Math.round(base * m * q));
+  // DL_RS_4.204：领域——杀神领域镇魂，魂兽年份上限+20%；蓝银领域庇护植物系武魂，吸收上限+15%
+  if(G.field==='sha') cap = Math.round(cap * 1.20);
+  if(G.field==='lan' && G.soul && soulEle(G.soul.name)==='zhi') cap = Math.round(cap * 1.15);
+  return cap;
 }
 function ringTag(r, i){
   const L = ringLevel(r.y);
@@ -5344,6 +5594,7 @@ function endEvalOf(){
   if(g.shenkaoN >= 9) specials.push(_shenkaoName + '全过');
   else if(g.shenkaoN > 0) specials.push(_shenkaoName + `通过${g.shenkaoN}考`);
   if(g.godArtifact) specials.push(`神器${g.godArtifact}`);
+  if(g.godArmor) specials.push('神装凝聚'); // DL_RS_4.203：六块魂骨集齐者于成神时凝聚神装
   if(g.godTitle) specials.push(`继承${g.godTitle}神位`);
   if(g.title && lv>=90) specials.push(`封号${g.title}`);
   
@@ -5541,6 +5792,7 @@ function finishLife(force){
   if(g.dual && g.dualRings && g.dualRings.length) sum += `<div class="es-row"><b>副环</b><span class="es-rings">${g.dualRings.map(ringTag).join('')}</span></div>`;
   if(g.bones && g.bones.length) sum += `<div class="es-row"><b>魂骨</b><span class="es-rings">${g.bones.map(b=>{const by=b.grade==='十万年'?100000:b.grade==='万年'?10000:b.grade==='千年'?1000:100; return `<span class="ering ${ringLevel(by).key}">${b.grade}·${b.slot}${b.skill?('·'+b.skill):''}</span>`;}).join('')}</span></div>`;
   if(g.extraBone) sum += `<div class="es-row"><b>外附魂骨</b><span class="es-rings"><span class="ering purple">${escapeHtml(g.extraBone.name)}（${g.extraBone.tier||0}阶${g.extraBone.grade?('·'+escapeHtml(g.extraBone.grade)):''}）</span></span></div>`; // DL_RS_4.199：转义
+  if(g.godArmor) sum += `<div class="es-row"><b>神装</b><span style="color:var(--gold)">六块魂骨共鸣，神装加身</span></div>`; // DL_RS_4.203：成神凝装
   sum += `</div>`;
   // 区块二：最终属性（战斗四维高亮 + 战力）
   sum += `<div class="es-block"><div class="es-row"><b>最终属性</b></div><div class="es-attrs">`;
@@ -5965,6 +6217,10 @@ let EVENTS = [
   {band:3, q:'rare', minAge:74, name:'宿命一战', text:'一位同辈强者寻到你，要了结当年未竟的一战。', req:{ev:'chousha'},
    opts:[{label:'应战', need:{attr:{力量:35}}, evAdd:{flag:'jiudi', eff:{力量:4}, txt:'你曾斩落封号级宿敌，威名在前，气势已胜三分'}, roll:{chance:0.4, extra:0.1, succ:{声望:15, 力量:6}, succText:'你以老迈之躯胜出，传为佳话。', fail:{体质:-12}, failText:'力有不逮，你重伤败北。', death:0.12, deathText:'殒落于宿命一战'}}, {label:'避而不战', eff:{声望:-3}}]},
   /* 紫 · 青年 */
+  {band:1, q:'epic', minAge:20, name:'化形魂兽之缘', w:0.5, type:'beastMate', text:'你在山野间偶遇一位气质出尘的少女，她望向你的眼神带着千年孤寂——化形魂兽的气息隐隐流动，寻常人绝难察觉。',
+   opts:[{label:'凝神细看', need:{attr:{精神力:45}}, _recognize:true, eff:{悟性:3}}, {label:'点头致意', _failTxt:'你只当她是位萍水相逢的姑娘，点头致意便错身而过。', eff:{悟性:2}}]},
+  {band:1, q:'legend', minAge:20, name:'生死危机·献祭', _manual:true, once:true, type:'beastSac', req:{lv:30, beastMate:true, beastMateAfter:2}, text:'武魂殿强者循迹而至，将你与道侣围困于绝地。她回眸望你，眼中泪光与决绝交织——她轻声说：若能护你周全，死又何惧。',
+   opts:[{label:'接受献祭', _sacrifice:true}, {label:'拼死一战', need:{attr:{力量:50}}, roll:{chance:0.25, extra:0.05, succ:{力量:6}, succText:'你杀红了眼，竟生生撕开一条血路！', fail:{体质:-20}, failText:'敌手太强，你拼尽全力仍护她不住。', death:0.45, deathText:'护道侣力战而亡'}}]},
   {band:1, q:'epic', minAge:17, name:'武魂异象', text:'你的武魂觉醒之日，天现异象，八方强者侧目。', once:true,
    opts:[{label:'借势扬名', need:{attr:{天命:20}}, eff:{声望:15, 天命:5}}, {label:'低调潜修', eff:{悟性:8}}]},
   /* 紫 · 中年 / 老年 */
@@ -5997,8 +6253,11 @@ let EVENTS = [
   /* 蓝 · 幼年 / 青年 */
   {band:0, q:'rare', minAge:12, name:'秘境小试', syn:{wq:'ding',wqMult:1.2}, text:'附近出现一处小型秘境，长辈带你入内试炼，传说其中藏有前人之物。',
    opts:[{label:'深入寻宝', need:{attr:{力量:20}}, roll:{chance:0.45, extra:0.05, succ:{力量:8, 敏捷:6, 悟性:4}, succText:'你寻得前人遗物，收获颇丰！', fail:{体质:-6}, failText:'触动了禁制，狼狈退出。'}}, {label:'外围观摩', eff:{悟性:3}}]},
-  {band:1, q:'epic', minAge:18, name:'杀戮之都', once:true, syn:{wq:'ding',wqMult:1.2}, text:'传闻杀戮之都中藏有极致机缘，却也是九死一生的修罗场。', req:{lv:30},
-   opts:[{label:'闯一闯', need:{attr:{力量:30}}, roll:{chance:0.35, extra:0.1, succ:{力量:14, 敏捷:10, 声望:18}, succText:'你于杀戮场中杀出一条血路！', fail:{体质:-22}, failText:'险些殒命，狼狈逃出。', death:0.18, deathText:'殒落于杀戮之都'}}, {label:'记在心里', eff:{悟性:3}}]},
+  /* DL_RS_4.207：杀戮之都完整事件链——寻入口（60级+低概率终生一次）→地狱杀戮场百连胜（强制四轮）→地狱路（杀神领域） */
+  {band:3, q:'legend', minAge:60, name:'杀戮之都·入口', _manual:true, _special:true, once:true, req:{lv:60}, text:'血色迷雾于大陆某处翻涌，一座古老城池的轮廓在雾中若隐若现——传闻那便是杀戮之都，大陆最血腥之地，九死一生，亦藏极致机缘。你已臻至魂帝之境，毅然踏入。',
+   opts:[{label:'踏入入口', _shaEnter:true, eff:{声望:10}}, {label:'谨慎离开，待日后功成再来', eff:{天命:1}, txt:'杀戮之都凶名在外，你按下好奇心转身离去——江湖路远，来日方长。'}], _shaOpen:true},
+  {band:3, q:'legend', name:'地狱杀戮场', _manual:true, _special:true, text:'地狱杀戮场——百人同场厮杀，唯胜者生。你已连战数轮，此轮再胜，距百连胜更近一步；败则重创退出，再无重来。',
+   opts:[{label:'提刀入场', _shaArena:true}]},
   {band:1, q:'uncommon', minAge:21, name:'魂骨黑市', syn:{cat:'qi',catMult:1.25}, text:'黑市中出现一块千年魂骨，要价不菲，真假难辨。',
    opts:[{label:'倾囊买下', need:{money:900}, bone:'千年', eff:{金魂币:-900, 体质:8}}, {label:'放弃', eff:{悟性:2}}]},
   /* 蓝 · 中年 / 老年 */
@@ -6060,7 +6319,7 @@ let EVENTS = [
    opts:[{label:'承接神光', eff:{lv:12, 悟性:10, 天命:8}, fortune:{years:4, mult:4}, heroTxt:'神光灌顶，魂力暴涨，你与神界的距离，似乎只隔着一层薄纱。'}, {label:'惊退避让', eff:{悟性:5}}]},
   {band:2, q:'legend', minAge:20, name:'海神之光', text:'海神岛的圣光穿透万里海浪，笼罩你身——你与海神产生了最深层的共鸣。', once:true, w:0.05, req:{lv:30},
    opts:[{label:'沐浴圣光', eff:{体质:14, 精神力:14, 天命:12}, fortune:{years:5, mult:4}, heroTxt:'海神之光洗炼神魂，你仿佛听见了来自万顷碧波的神谕。'}, {label:'凝望片刻', eff:{悟性:6}}]},
-  {band:2, q:'legend', minAge:26, name:'杀戮之都·地狱路', syn:{wq:'ding',wqMult:1.2}, text:'你在杀戮之都杀穿百场，直达地狱路入口——传说通过者将获杀戮神眷。', once:true, w:0.05, req:{lv:40},
+  {band:2, q:'legend', minAge:30, name:'杀戮之都·地狱路', _fieldOnSucc:'sha', _manual:true, _special:true, syn:{wq:'ding',wqMult:1.2}, text:'你在杀戮之都杀穿百场，直达地狱路入口——传说通过者将获杀戮神眷。', once:true, req:{lv:40, shaKills:100},
    opts:[{label:'闯地狱路', need:{attr:{力量:60}}, roll:{chance:0.5, extra:0.1, succ:{力量:20, 敏捷:16, 精神力:18, 天命:10}, succText:'你杀穿地狱路，杀神领域初成，杀意凝而不散！', fail:{体质:-25}, failText:'地狱路凶险，你重伤败退。', death:0.25, deathText:'陨落于地狱路'}, fortune:{years:4, mult:4}, heroTxt:'地狱路尽头，杀戮法则灌体——你已走上主角的通天路。'}, {label:'止步于此', eff:{悟性:5}}]},
   /* ==== 魂师对决（DL_RS_4.99）==== */
   {band:1, q:'rare', minAge:16, maxAge:70, name:'魂师挑战赛', text:'镇上的武斗场今日开擂，三教九流的魂师摩拳擦掌，彩金丰厚。', type:'duel', mode:'arena', req:{xianMin:1},
@@ -6194,7 +6453,13 @@ function autoAct(){
     // DL_RS_4.151：事件选择按性格风险偏好——勇猛/豪迈敢赌高成功率 roll，沉稳/隐忍只选无风险
     const _p5 = PERS_BY_NAME[G.personality||'']; const _risk = _p5 ? _p5.evRisk : 0;
     let target = null;
-    if(_risk>=2){ target = btns.find(b=>b._o && b._o.roll && !b.disabled && (b._o.roll.chance||0)>=0.75) || btns.find(b=>b._o && !b._o.roll && !b.disabled); }
+    // DL_RS_4.209：杀戮之都入口 AUTO 决策——仅勇猛/豪迈性格踏入；99 级成神窗口期一律不涉险（防极限斗罗被入口拖死）
+    const _shaBtn = btns.find(b=>b._o && b._o._shaEnter);
+    if(_shaBtn){
+      const _riskHigh = _risk>=2;
+      const _godWin = (G.lv||0)>=99;
+      target = (_riskHigh && !_godWin) ? _shaBtn : (btns.find(b=>b._o && !b._o._shaEnter && !b.disabled) || btns.find(b=>!b.disabled && b!==_shaBtn) || _shaBtn);
+    } else if(_risk>=2){ target = btns.find(b=>b._o && b._o.roll && !b.disabled && (b._o.roll.chance||0)>=0.75) || btns.find(b=>b._o && !b._o.roll && !b.disabled); }
     else if(_risk===1){ target = btns.find(b=>b._o && !b._o.roll && !b.disabled) || btns.find(b=>b._o && b._o.roll && !b.disabled && (b._o.roll.chance||0)>=0.8); }
     else { target = btns.find(b=>b._o && !b._o.roll && !b.disabled); }
     
@@ -6236,7 +6501,10 @@ function autoAct(){
       const godBtn = btns.filter(b=>!b.disabled && /^(低档|中档|高档)/.test(b.textContent.trim()));
       if(godBtn.length){ t = godBtn[godBtn.length-1]; }
       else {
-        const ck = btns.find(b=>!b.disabled && (b.textContent.includes('迎接神考') || b.textContent.includes('自创神位')));
+        // DL_RS_4.211：自创神位失败过（≥1 次）后 AUTO 不再自动冲击——4% 成功率下反复冲击必耗尽 3 次豁免致死；
+        // 神考可继续（失败不致死）；手动玩家仍可自行选择「自创神位」再试
+        const ck = btns.find(b=>!b.disabled && b.textContent.includes('迎接神考'))
+          || btns.find(b=>!b.disabled && b.textContent.includes('自创神位') && !(G._selfGodFail||0));
         if(ck){ t = ck; }
         else {
         // 智能行动选择（替代原来固定「历练」）：
