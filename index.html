@@ -4233,6 +4233,7 @@ function passReq(e){
   if(r.notSeaInProgress && ((g.chain && g.chain.id==='seashen') || g.seaNineDone)) return false; // DL_RS_4.171：海神九考未进行中
   if(r.notSelfGodSeed && g._selfGodSeed) return false;     // DL_RS_4.171：要求未凝聚神位种子（神位种子事件只触发一次）
   if(r.spouse && !g.spouse) return false;
+  if(r.notSpouse && g.spouse) return false; // DL_RS_4.222：已有道侣时不触发化形魂兽结缘
   if(r.master && !g.master) return false;
   if(r.prestige && g.prestige < r.prestige) return false;
   if(r.money && g.money < r.money) return false;
@@ -4469,7 +4470,7 @@ function showEvent(ev){
   const chainTag = (ev.chainId && CHAINS[ev.chainId]) ? `<span class="chtag">事件链 · ${CHAINS[ev.chainId].name}</span>` : '';
   const EVCOL={common:'#d9e2f5',uncommon:'#e6c940',rare:'#c39bd3',epic:'#a8b0c0',legend:'#ff6b6b',mythic:'#ffd700'};
   const qtagHtml = ev._special ? '' : `<span class="qtag ${qCls}" style="color:${EVCOL[ev.q]||'#d9e2f5'}">${EV_Q[ev.q]}品质</span>`;
-card.innerHTML = `<div class="en">【${ev.name}】${qtagHtml}${chainTag}</div><div>${ev.text}</div>`;
+card.innerHTML = `<div class="en">【${ev.name}】${qtagHtml}${chainTag}</div><div>${(ev.text||'').replace(/\{ta\}/g, (G.gender==='女'?'他':'她'))}</div>`; // DL_RS_4.222：性别代词占位符
   const optsDiv=document.createElement('div'); optsDiv.className='opts';
   // DL_RS_4.63：事件保证至少一个「无要求选项」——若事件所有选项都带属性/条件门槛（配置漏配时防御），
   // 自动追加「就此作罢」兜底选项：无需任何条件即可选，手动/自动挂机均不会卡死，也绝不绕过属性门槛。
@@ -4641,10 +4642,14 @@ function resolveEvent(ev, idx){
   // DL_RS_4.205：化形魂兽之缘——精神力≥45 识别真身，结为道侣（触发后续生死危机·献祭链）
   if(ev.type==='beastMate'){
     if(o._recognize && a.精神力>=45){
-      const _bn = ['小柔','小七','阿紫','青儿','雪儿','月影','灵溪','瑶瑶'][Math.floor(Math.random()*8)];
+      // DL_RS_4.222：道侣性别与玩家相反（女玩家遇男魂兽），名字池/代词随之适配；道侣存纯名防「化形魂兽」字样重复
+      const _bn = (g.gender==='女'
+        ? ['玄青','子安','墨白','云峥','临渊','惊鸿','朔风','沧澜']
+        : ['小柔','小七','阿紫','青儿','雪儿','月影','灵溪','瑶瑶'])[Math.floor(Math.random()*8)];
+      const _ta = g.gender==='女' ? '他' : '她';
       g._beastMate = true; g._beastMateAge = g.age;
-      g.spouse = '化形魂兽·'+_bn;
-      addLog(`<b>识破真身！</b>你凝神细看，竟看穿了她化形魂兽的身份——她坦然承认，眼中情意渐生，自此与你结为道侣「${g.spouse}」。你心知这份情缘福祸难料，却也不枉此生。`,'good');
+      g.spouse = _bn;
+      addLog(`<b>识破真身！</b>你凝神细看，竟看穿${_ta}化形魂兽的真身——${_ta}坦然承认，眉眼间是千年独行的孤寂：世间能看破${_ta}真身而不惊走的人，你是第一个。自此${_ta}常来寻你，或溪畔论道，或月下对酌，情愫在朝夕间悄然生根。终有一日，${_ta}与你结为道侣「${g.spouse}」。你心知这份情缘福祸难料，却也不枉此生。`,'good');
       if(g.achievements.indexOf('化形魂兽之缘')<0) g.achievements.push('化形魂兽之缘');
     } else {
       addLog(o._failTxt || '你只当她是个寻常女子，寒暄几句便各奔东西。','note');
@@ -4660,10 +4665,12 @@ function resolveEvent(ev, idx){
       const _s2 = genSkill(idx2, 'shou', '魂兽之力').replace(/^第[一二三四五六七八九十]+·/,'');
       const _sk2 = '双·'+_s1+' / '+_s2;
       g.rings.push({q:'shen', skill:_sk2, choice:'献祭', y:100000, beast:'化形魂兽献祭', ele:'献祭之力', sync:true});
+      const _ta2 = g.gender==='女' ? '他' : '她';
+      addLog(`<b>生死危机！</b>武魂殿强者循迹而至，将你与道侣围困于绝地——${_ta2}回眸望你，眼中泪光与决绝交织：若能护你周全，死又何惧。`,'bad');
       g._beastMate = false; g._beastMateAge = null;
-      g.spouse = '';
+      // DL_RS_4.222：亡道侣名字保留（不置空）——献祭后不再触发普通再婚，总结页道侣仍为逝去的${_ta2}，杜绝「青梅竹马顶替」
       g._lifeCut = (g._lifeCut||0) + 30;
-      addLog(`<b>十万年献祭！</b>她将毕生魂力凝入你的第 ${idx2+1} 个魂环——<b>十万年魂环【${_sk2}】</b>降临！她的气息自此消散于天地之间，你寿元永久 -30 年。`,'good');
+      addLog(`<b>十万年献祭！</b>${_ta2}将毕生魂力凝入你的第 ${idx2+1} 个魂环——<b>十万年魂环【${_sk2}】</b>降临！${_ta2}的气息自此消散于天地之间，你寿元永久 -30 年。`,'good');
       showToast('十万年魂环 · 双魂技', '#ff6b6b');
       if(g.achievements.indexOf('十万年献祭')<0) g.achievements.push('十万年献祭');
     } else {
@@ -6210,16 +6217,16 @@ let EVENTS = [
   /* 蓝 · 青年 */
   {band:1, q:'uncommon', minAge:19, name:'魂师殿试', text:'武魂殿三年一度的殿试开考，天才云集。', req:{xianMin:1, lv:30},
    opts:[{label:'参加殿试', need:{attr:{力量:30}}, roll:{chance:0.5, extra:0.05, succ:{声望:10, 力量:4}, succText:'你在殿试中崭露头角，武魂殿注意到了你。', fail:{体质:-5}, failText:'殿试惨烈，你重伤落榜。'}}, {label:'不凑热闹', eff:{悟性:3}}]},
-  {band:2, q:'rare', minAge:44, name:'化形魂兽', syn:{cat:'shou',catMult:1.25}, text:'一头修炼有成、化为人形的魂兽与你相识，竟颇谈得来。',
-   opts:[{label:'与之结交', need:{attr:{精神力:25}}, eff:{精神力:8, 悟性:6}, evAdd:{flag:'shenshou', eff:{精神力:4}, txt:'你与神兽缔结过契约，这头化形魂兽与你格外亲近'}}, {label:'婉言疏远', eff:{悟性:3}}]},
+  {band:2, q:'rare', minAge:44, name:'通灵异兽', syn:{cat:'shou',catMult:1.25}, text:'一头修炼有成的万年魂兽竟已颇具灵智，虽未至化形之境，却与你相识恨晚，颇谈得来。',
+   opts:[{label:'与之结交', need:{attr:{精神力:25}}, eff:{精神力:8, 悟性:6}, evAdd:{flag:'shenshou', eff:{精神力:4}, txt:'你与神兽缔结过契约，这头灵兽与你格外亲近'}}, {label:'婉言疏远', eff:{悟性:3}}]},
   {band:3, q:'common', minAge:64, name:'旧伤复发', text:'早年征战的暗伤复发，气血翻涌，你夜不能寐。',
    opts:[{label:'寻医求药', eff:{家境:-5, 体质:4}}, {label:'硬撑过去', need:{attr:{体质:30}}, eff:{体质:-6}}]},
   {band:3, q:'rare', minAge:74, name:'宿命一战', text:'一位同辈强者寻到你，要了结当年未竟的一战。', req:{ev:'chousha'},
    opts:[{label:'应战', need:{attr:{力量:35}}, evAdd:{flag:'jiudi', eff:{力量:4}, txt:'你曾斩落封号级宿敌，威名在前，气势已胜三分'}, roll:{chance:0.4, extra:0.1, succ:{声望:15, 力量:6}, succText:'你以老迈之躯胜出，传为佳话。', fail:{体质:-12}, failText:'力有不逮，你重伤败北。', death:0.12, deathText:'殒落于宿命一战'}}, {label:'避而不战', eff:{声望:-3}}]},
   /* 紫 · 青年 */
-  {band:1, q:'epic', minAge:20, name:'化形魂兽之缘', w:0.5, type:'beastMate', text:'你在山野间偶遇一位气质出尘的少女，她望向你的眼神带着千年孤寂——化形魂兽的气息隐隐流动，寻常人绝难察觉。',
+  {band:1, q:'epic', minAge:20, name:'化形魂兽之缘', w:0.5, type:'beastMate', req:{notSpouse:true}, text:'你在山野间偶遇一位气质出尘、眼底带着千年孤寂的化形魂兽——{ta}的真身气息隐隐流动，寻常人绝难察觉。',
    opts:[{label:'凝神细看', need:{attr:{精神力:45}}, _recognize:true, eff:{悟性:3}}, {label:'点头致意', _failTxt:'你只当她是位萍水相逢的姑娘，点头致意便错身而过。', eff:{悟性:2}}]},
-  {band:1, q:'legend', minAge:20, name:'生死危机·献祭', _manual:true, once:true, type:'beastSac', req:{lv:30, beastMate:true, beastMateAfter:2}, text:'武魂殿强者循迹而至，将你与道侣围困于绝地。她回眸望你，眼中泪光与决绝交织——她轻声说：若能护你周全，死又何惧。',
+  {band:1, q:'legend', minAge:20, name:'生死危机·献祭', _manual:true, once:true, type:'beastSac', req:{lv:30, beastMate:true, beastMateAfter:2}, text:'武魂殿强者循迹而至，将你与道侣围困于绝地。{ta}回眸望你，眼中泪光与决绝交织——{ta}轻声说：若能护你周全，死又何惧。',
    opts:[{label:'接受献祭', _sacrifice:true}, {label:'拼死一战', need:{attr:{力量:50}}, roll:{chance:0.25, extra:0.05, succ:{力量:6}, succText:'你杀红了眼，竟生生撕开一条血路！', fail:{体质:-20}, failText:'敌手太强，你拼尽全力仍护她不住。', death:0.45, deathText:'护道侣力战而亡'}}]},
   {band:1, q:'epic', minAge:17, name:'武魂异象', text:'你的武魂觉醒之日，天现异象，八方强者侧目。', once:true,
    opts:[{label:'借势扬名', need:{attr:{天命:20}}, eff:{声望:15, 天命:5}}, {label:'低调潜修', eff:{悟性:8}}]},
