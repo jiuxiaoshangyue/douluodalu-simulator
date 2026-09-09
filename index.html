@@ -18,7 +18,9 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
   .card h3{color:var(--gold);font-size:14px;letter-spacing:2px;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
   .screen{display:none}
-  .screen.active{display:block}
+  .screen.active{display:block; animation:screenIn .3s ease-out} /* DL_RS_4.229：页面切换淡入+轻微上移，避免生硬跳变 */
+  @keyframes screenIn{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion: reduce){ .screen.active{animation:none} }
   .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:78vh;text-align:center}
   .logo{font-size:42px;font-weight:800;color:var(--gold);letter-spacing:6px;margin-bottom:6px;text-shadow:0 0 24px rgba(201,162,39,.35)}
   .subtitle{color:var(--dim);margin-bottom:34px;font-size:14px;letter-spacing:2px}
@@ -140,8 +142,12 @@
   /* 本局历程：年份标签（DL_RS_4.17，金色醒目标注「第X岁」） */
   .ly{color:var(--gold);font-weight:700;margin-right:5px;white-space:nowrap}
   /* 图鉴（DL_RS_4.33）：跨世收集面板 */
-  .atlas-summ{display:flex;gap:10px;flex-wrap:wrap}
-  .atlas-chip{flex:1;min-width:120px;padding:6px 10px;border:1px solid #3a3a44;border-radius:8px;background:rgba(255,255,255,.02)}
+  /* DL_RS_4.235：图鉴摘要分组布局——进度/加成两组，组内均分对齐 */
+  .atlas-summ{display:flex;flex-direction:column;gap:10px}
+  .atlas-group{border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.015)}
+  .atlas-gt{font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:700;letter-spacing:.5px}
+  .atlas-grow{display:flex;gap:8px;flex-wrap:wrap}
+  .atlas-chip{flex:1;min-width:100px;padding:6px 10px;border:1px solid #3a3a44;border-radius:8px;background:rgba(255,255,255,.02);text-align:center}
   .atlas-chip b{display:block;font-size:15px;color:var(--gold);margin-bottom:2px}
   .atlas-chip span{font-size:11px;color:var(--dim)}
   .atlas-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
@@ -712,6 +718,10 @@ const SOULS_BY_Q = {
     {name:'黄金三叉戟', cat:'qi'}, {name:'六翼天使', cat:'qi'}, {name:'十首火凤凰', cat:'shou'}, {name:'海神', cat:'qi'}
   ]
 };
+/* DL_RS_4.233：辅助系武魂白名单——原著辅助/治疗/增益定位（七宝琉璃塔、九宝琉璃塔、九心海棠、
+   玉如意、香肠、七叶莲、星冠、奇茸通天菊）。仅决斗胜率施加修正（辅助系不擅正面单挑）；
+   战力显示、成就、评分与成神路径一律不受影响（避免辅助系成神率被类型拖累）。 */
+const AUX_SOULS = ['七宝琉璃塔','九宝琉璃塔','九心海棠','玉如意','香肠','七叶莲','星冠','奇茸通天菊'];
 /* DL_RS_4.137：武魂图鉴总数（动态计算——本体武魂加入 you 池后 108→117） */
 const SOUL_TOTAL = Object.values(SOULS_BY_Q).reduce((a,l)=>a+l.length, 0);
 /* 武魂变异族系进化链（DL_RS_4.128 重制） */
@@ -1154,6 +1164,27 @@ function collectionTitles(){
   return t;
 }
 
+/* DL_RS_4.234：成就殿堂里程碑 → 永久天命加成（履历丰富者命运眷顾；动态比例档，克制最多 +6）
+   注意：不加悟性——悟性在武魂觉醒后受品质上限截断（fei50~shen100），加成会被吃掉无感知 */
+function achieveBonus(){
+  const t = ACHIEVEMENTS.length, n = ACHIEVEMENTS.filter(a=>a.prog().done).length;
+  const r = t ? n/t : 0;
+  if(r >= 1)    return 6;
+  if(r >= 0.8)  return 4;
+  if(r >= 0.5)  return 2;
+  if(r >= 0.25) return 1;
+  return 0;
+}
+/* DL_RS_4.234：结局图鉴里程碑 → 永久精神力加成（百世轮回，精神沉淀；克制，最多 +6） */
+function endingBonus(){
+  const n = atlasCount('endings');
+  if(n >= 16) return 6;
+  if(n >= 12) return 4;
+  if(n >= 8)  return 2;
+  if(n >= 4)  return 1;
+  return 0;
+}
+
 /* ============ 成就系统（DL_RS_4.139）：图鉴「成就」页展示的跨世成就清单 ============
    分「收集 / 生涯 / 战绩」三类，解锁状态由跨局持久化数据实时推导，无需额外存储：
    收集 → META.atlas（武魂/事件/结局）；生涯 → META.records（成神/封号/冠军等）；
@@ -1252,8 +1283,6 @@ const ACHIEVEMENTS = [
   // —— DL_RS_4.150 扩展：战绩类 ——
   {cat:'feat', name:'战力破五十万', desc:'历史最高战力达到 50 万', prog:function(){
     const b=(META.records||{}).bestPower||0; return {n:b, goal:500000, done:b>=500000}; }},
-  {cat:'feat', name:'战力百万', desc:'历史最高战力达到 80 万', prog:function(){
-    const b=(META.records||{}).bestPower||0; return {n:b, goal:800000, done:b>=800000}; }},
   {cat:'feat', name:'评分三千', desc:'历史最高评分达到 3000', prog:function(){
     const b=(META.records||{}).bestScore||0; return {n:b, goal:3000, done:b>=3000}; }},
   {cat:'feat', name:'评分登峰', desc:'历史最高评分达到 4500', prog:function(){
@@ -1288,7 +1317,7 @@ const LUNHUI_DEF = [
   {k:'legendEv', name:'红事件', per:'+0.1% 概率/点', max:50, desc:'红色传说事件出现概率'},
   {k:'mythicEv', name:'金事件', per:'+0.05% 概率/点', max:50, desc:'金色神话事件出现概率'},
   {k:'goodMut', name:'武魂变异', per:'+0.25% 触发概率/点', max:60, desc:'提高武魂变异概率（基础 5%，入对宗门可突破上限）'},
-  {k:'shenGan', name:'神位感应', per:'每点+0.01%/年（满50点：99级一生约25%）', max:50, desc:'提高神位传承感应（95级后生效）'}
+  {k:'shenGan', name:'神位感应', per:'每点+0.015%/年（满50点：99级一生约38%）', max:50, desc:'提高神位传承感应（95级后生效）'}
 ];
 function lunhuiVal(k){ return META.lunhui[k] || 0; }
 /* DL_RS_4.75：局内轮回加护展示——把轮回殿加点转成实际加成文案（局内 HUD 只读显示） */
@@ -1807,12 +1836,18 @@ function renderAtlasSumm(){
   const box = $('atlasSumm'); if(!box) return;
   const ns = atlasCountSouls(), ne = atlasCount('events'), nEnd = atlasCount('endings');
   box.innerHTML = `
-    <div class="atlas-chip"><b>${ns}/${SOUL_TOTAL}</b><span>武魂</span></div>
-    <div class="atlas-chip"><b>${ne}/${EVENTS.length}</b><span>事件</span></div>
-    <div class="atlas-chip"><b>${nEnd}</b><span>结局</span></div>
-    <div class="atlas-chip"><b>+${atlasBonus()}</b><span>天命</span></div>
-    <div class="atlas-chip"><b>+${atlasBonusEvents()}</b><span>悟性</span></div>
-    <div class="atlas-chip"><b>${collectionTitles().length}</b><span>称号</span></div>`;
+    <div class="atlas-group"><div class="atlas-gt">收集进度</div><div class="atlas-grow">
+      <div class="atlas-chip"><b>${ns}/${SOUL_TOTAL}</b><span>武魂</span></div>
+      <div class="atlas-chip"><b>${ne}/${EVENTS.length}</b><span>事件</span></div>
+      <div class="atlas-chip"><b>${nEnd}</b><span>结局</span></div>
+    </div></div>
+    <div class="atlas-group"><div class="atlas-gt">永久加成 · 开局生效</div><div class="atlas-grow">
+      <div class="atlas-chip"><b>+${atlasBonus()}</b><span>武魂天命</span></div>
+      <div class="atlas-chip"><b>+${achieveBonus()}</b><span>成就天命</span></div>
+      <div class="atlas-chip"><b>+${atlasBonusEvents()}</b><span>事件悟性</span></div>
+      <div class="atlas-chip"><b>+${endingBonus()}</b><span>结局精神力</span></div>
+      <div class="atlas-chip"><b>${collectionTitles().length}</b><span>称号</span></div>
+    </div></div>`;
 }
 $('btnAtlas').onclick = ()=>{
   const p = $('atlasPanel');
@@ -2024,6 +2059,7 @@ function rollAttrs(){
   // 保存基础随机值（用于开局显示"总值（基础+加成）"）
   const _base = {体质:0, 悟性:0, 力量:0, 敏捷:0, 精神力:0, 家境:a.家境, 天命:a.天命};
   a.天命 += atlasBonus(); // DL_RS_4.33：图鉴收集里程碑 → 永久天命加成
+  a.天命 += achieveBonus(); // DL_RS_4.234：成就殿堂里程碑 → 永久天命加成
   // 战斗四维不设上限（仅保底 0），其余三维保持 1-100
   FIGHT_ATTRS.forEach(k=>{ a[k]=Math.max(0, a[k]); });
   OTHER_ATTRS.forEach(k=>{ a[k]=clamp(a[k],1,100); });
@@ -2329,6 +2365,7 @@ function rollAwakenAttrs(g, quality, cat){
   // 叠加永久加成：轮回殿加点 + 图鉴事件悟性
   a.力量 += lunhuiVal('liLiang'); a.敏捷 += lunhuiVal('minJie');
   a.体质 += lunhuiVal('tiLi');    a.精神力 += lunhuiVal('jingShen');
+  a.精神力 += endingBonus(); // DL_RS_4.234：结局图鉴里程碑 → 永久精神力加成
   a.悟性 += lunhuiVal('wuXing')*0.5;
   a.悟性 += atlasBonusEvents(); // DL_RS_4.99：事件图鉴收集里程碑 → 永久悟性加成
   // 命格暂存加成（根骨清奇等四维/悟性命格加成，btnAccept 时暂存于 _fateAttrBonus）
@@ -2762,7 +2799,7 @@ function cultMultLabel(){
     if(g.soul.quality==='pu' && g.lv>=40) base *= 0.35;
     if(g.soul.quality==='you' && g.lv>=70) base *= 0.32;
   }
-  return base * m * (g.soul.mutSpeed || 1) * (g.field==='lan' ? 1.08 : 1); // DL_RS_4.204：蓝银领域修炼速度+8%（HUD 与实际同步）
+  return base * m * (g.soul.mutSpeed || 1) * orgCultMult() * (g.field==='lan' ? 1.08 : 1); // DL_RS_4.204：蓝银领域修炼速度+8%（HUD 与实际同步）；DL_RS_4.224：补乘势力修炼加成（唐门+5%/昊天宗+10%/蓝电+5%）
 }
 /* 修炼年龄衰减（DL_RS_4.6）：50 岁前为修炼黄金期，无衰减；
    50 岁后年龄越大修炼越艰难（线性递减至 0.65 封底）——
@@ -3229,7 +3266,7 @@ const ORG_BONUS = {
   '天南宗': {trend:{力量:1.06,敏捷:1.06,体质:1.06,精神力:1.06}, desc:'中庸之道·全属性成长+6%'},
   '自建宗门': {prestigeMult:1.6, wuMult:1.10, trend:{力量:1.05,敏捷:1.05,体质:1.05,精神力:1.05}, desc:'宗主之尊·声望获取+60%、悟性成长+10%、全属性成长+5%'},
   // DL_RS_4.201：唐门——隐藏势力（集齐六部唐门功法后经「唐门传承」事件解锁，不参与常规招揽）
-  '唐门': {wuMult:1.10, trend:{敏捷:1.12, 精神力:1.08}, desc:'暗器百解·敏捷成长+12%、精神力+8%、悟性成长+10%、猎魂反噬率-30%'}
+  '唐门': {wuMult:1.10, trend:{敏捷:1.12, 精神力:1.08, 力量:1.05, 体质:1.05}, cultMult:1.05, desc:'六绝入宗：玄天功修炼+5%、鬼影迷踪敏捷成长+12%、紫极魔瞳精神力成长+8%、控鹤擒龙力量成长+5%、玄玉手体质成长+5%、暗器百解悟性成长+10%（研习暗器）、猎魂反噬率-30%'} // DL_RS_4.224/4.226：唐门修炼+5%（cultMult）；宗门增益按六绝逐项落实（悟性+10% 经 wuMult→orgWuMult 生效）
 };
 /* ============ 势力加入要求（DL_RS_4.173：不同势力不同门槛，契合原著） ============ */
 const ORG_REQ = {
@@ -4387,6 +4424,8 @@ let pb = EVENTS.filter(e=>e && (e.art ? true : e.band===band) && e.q===qq // DL_
 && !(e.chainId && e.chainStart && g.chainDone && g.chainDone[e.chainId])  // 链起点 once
 && (!e.needOrg || g.org===e.needOrg)
 && !e._manual // DL_RS_4.206：独立判定事件（杀戮之都/地狱路/生死危机）不参与品质池，节奏由 triggerEvent 独立控制
+&& !(e.q==='common' && (g.lv||0)>=70)     // DL_RS_4.232：魂圣(70级)后白品质生活流淘汰（凡人线保留人间烟火）
+&& !(e.q==='uncommon' && (g.lv||0)>=90)   // DL_RS_4.232：封号(90级)后黄品质生活流淘汰
 && passReq(e));
 // DL_RS_4.200：名人模板事件权重提升（海神岛机缘——按模板配置放大池内权重，用副本避免污染事件表）
 // 名人「神位传承」不参与随机抽取（触发完全由 99 级钩子控制，保证成神率可校准）；
@@ -4412,17 +4451,17 @@ if(f.length) return f;
 return pb;
 };
 let pool = buildEp(q);
-if(pool.length===0 && q!=='common'){
+if(pool.length===0){
 if(giftForced){ // 指定品质本阶段无事件 → 保留指定（等后续阶段强制），本次按普通品质走
 giftForced=false;
 const rq2 = Math.random();
 q = rq2<wM?'mythic':rq2<wM+wL?'legend':rq2<wM+wL+wE?'epic':rq2<wM+wL+wE+wR?'rare':rq2<wM+wL+wE+wR+wU?'uncommon':'common';
 pool = buildEp(q);
-} else { // 高端池空 → 逐级降档取事件，避免空触发
+// DL_RS_4.232：向更高品质逐级找事件（向上降档）——白/黄被等级淘汰后，份额自然流入最低未淘汰品质（权重表不动）
 const order = ['mythic','legend','epic','rare','uncommon','common'];
 let qi = order.indexOf(q);
-while(pool.length===0 && qi < order.length-1){
-qi++;
+while(pool.length===0 && qi > 0){
+qi--;
 q = order[qi];
 pool = buildEp(q);
 }
@@ -4887,6 +4926,7 @@ function resolveEvent(ev, idx){
     g.tangmenArts = g.tangmenArts || [];
     if(g.tangmenArts.indexOf(ev.art) < 0){
       g.tangmenArts.push(ev.art);
+      // DL_RS_4.228：功法无习得被动——宗门增益（ORG_BONUS['唐门'] 六绝版）即集齐六部功法的回报，避免双重叠加
       addLog(`<b>习得唐门功法「${ev.art}」！</b>（${g.tangmenArts.length}/6）`,'good');
     }
   }
@@ -5063,6 +5103,8 @@ function duelWinP(opp){
   let pr = 0.5 + (p - opp)/Math.max(opp,1) * 1.1;
   pr += (a.力量-5)*0.001 + (a.敏捷-5)*0.0008 + (a.体质-5)*0.0004 + (a.天命-30)*0.001;
   pr += ({fei:-0.10, pu:-0.05, you:0.03, ding:0.10, super:0.14, shen:0.18}[g.soul.quality]||0);
+  // DL_RS_4.233：辅助系武魂正面单挑劣势（原著定位——辅助系不擅战斗；双生以主武魂定位为准）
+  if(AUX_SOULS.indexOf(g.soul.name)>=0) pr += -0.10;
   const _sm = stanceBonus(); // DL_RS_4.111：战斗姿态修正
   pr += _sm.win;
   return clamp(pr, 0.05, 0.95);
@@ -5188,7 +5230,7 @@ function endYear(){
     // DL_RS_4.147：海神眷顾——九考全通且有轮回加护者神祇常伴，神位感应率 ×6（海神九考为稳定成神路径，99 级另有保底）
     const _seaOK = g.seaNineDone && LUNHUI_DEF.some(function(d){ return lunhuiVal(d.k)>0; });
     // DL_RS_4.213：轮回殿「神位感应」加点直加年感应率（每点 +0.015%/年，50 点 +0.75%/年；0.02% 时 99 级转化 82% 偏高，微降留悬念），封顶 0.5
-    const senseFinal = Math.min(0.5, (_seaOK ? Math.min(0.5, senseChance*6) : senseChance) + (lunhuiVal('shenGan')||0)*0.00010); // 4.216d 感应 0.00015→0.00010
+    const senseFinal = Math.min(0.5, (_seaOK ? Math.min(0.5, senseChance*6) : senseChance) + (lunhuiVal('shenGan')||0)*0.00015); // 4.216d/4.231 感应 0.00015（满50点 +0.75%/年，满加成成神率推至 ~12-15%）
     if(Math.random() < senseFinal){
       g._godSensePending = true;
     }
@@ -6060,6 +6102,29 @@ let EVENTS = [
    opts:[{label:'挺身而出', need:{attr:{力量:50}}, evSet:'shouchao2', roll:{chance:0.35, extra:0.1, succ:{声望:18,力量:8}, succText:'你出手镇压兽潮，大陆都记住了你的名字。', fail:{体质:-18}, failText:'几乎被兽潮吞没。', death:0.15, deathText:'葬身于兽潮'}}, {label:'固守不出', eff:{}}]},
   {band:2, q:'rare', minAge:55, name:'帝国相邀', text:'帝国皇室遣使相邀，许你供奉高位。', req:{lv:55, prestige:30, minQuality:'pu'},
    opts:[{label:'接受供奉', need:{prestige:30}, eff:{家境:10, 声望:5}}, {label:'婉拒归隐', eff:{悟性:4}}]},
+  /* DL_RS_4.232：强者生活事件——60岁后替代白/黄生活流（魂圣起淘汰白、封号起淘汰黄），题材强者化 */
+  {band:3, q:'rare', minAge:60, name:'闭关苦修', text:'你于洞府之中闭关参悟，不问世事。岁月流逝，你在寂静中窥见武道的更深层奥义。',
+   opts:[{label:'闭关三载', eff:{悟性:5, 精神力:4}, txt:'三载闭关，一朝出关——你的武道感悟愈发圆融。'}, {label:'静坐数月', eff:{悟性:3}, txt:'静坐感悟，心性愈发沉稳。'}]},
+  {band:3, q:'rare', minAge:60, name:'问道论剑', text:'一位同阶强者慕名而来，与你以武论道，切磋印证。', req:{lv:60},
+   opts:[{label:'全力论剑', need:{attr:{力量:60}}, roll:{chance:0.5, extra:0.06, succ:{声望:10, 力量:6, 悟性:3}, succText:'棋逢对手，你在论剑中窥见了自己武道的破绽与精进。', fail:{体质:-6}, failText:'论剑落败，你闭关反思。'}}, {label:'以茶论道', eff:{悟性:4}, txt:'不诉诸刀兵，仅以言语论道，亦有所得。'}]},
+  {band:3, q:'rare', minAge:60, name:'踏遍山河', text:'你卸下俗务，踏遍大陆山河，观沧海桑田、天地大势。',
+   opts:[{label:'登临绝巅', eff:{悟性:5, 精神力:3}, txt:'立于大陆之巅俯瞰众生，天地辽阔，心亦辽阔。'}, {label:'行舟江海', eff:{体质:3, 精神力:2}, txt:'江海涤荡心神，你与天地愈发亲近。'}]},
+  {band:3, q:'rare', minAge:62, name:'品茗弈棋', text:'你与故友于庭院对弈品茗，谈笑间指点风云。',
+   opts:[{label:'对弈三局', eff:{悟性:4, 精神力:3}, txt:'棋局如人生，你在纵横之间明悟取舍之道。'}, {label:'闲谈往事', eff:{精神力:3}, txt:'旧事重提，心绪渐平。'}]},
+  {band:3, q:'rare', minAge:64, name:'秘境寻踪', text:'一处上古秘境现世，传闻其中有强者遗留的机缘。',
+   opts:[{label:'入秘境一探', need:{attr:{体质:65}}, roll:{chance:0.4, extra:0.08, succ:{悟性:8, 精神力:6, 天命:4}, succText:'你在秘境中寻得前人感悟，修为愈发精深。', fail:{体质:-12}, failText:'秘境凶险，你重伤而返。'}}, {label:'敬而远之', eff:{悟性:3}, txt:'机缘与凶险并存，你选择稳健。'}]},
+  {band:3, q:'rare', minAge:60, name:'坐镇一方', text:'你威名远播，一方百姓奉你为守护者，求你坐镇以镇邪祟。',
+   opts:[{label:'应允坐镇', eff:{声望:12, 天命:3}, txt:'你坐镇一方，邪祟闻风远遁，万家安宁。'}, {label:'婉言谢绝', eff:{悟性:4}, txt:'你不愿受俗务羁绊，专心武道。'}]},
+  {band:3, q:'rare', minAge:63, name:'观星悟道', text:'夜阑人静，你独上高楼观星，星象流转间似有天地法则隐现。',
+   opts:[{label:'凝神观星', need:{attr:{悟性:55}}, roll:{chance:0.45, extra:0.06, succ:{悟性:8, 天命:4}, succText:'星象与你心神共鸣，你对天地法则有了新的领悟。', fail:{精神力:-6}, failText:'星象太过玄奥，你心神微倦。'}}, {label:'凭栏赏月', eff:{精神力:3}, txt:'月华如水，心境澄明。'}]},
+  {band:3, q:'rare', minAge:65, name:'故人长谈', text:'多年不见的故人寻来，与你把酒言欢，共忆峥嵘岁月。',
+   opts:[{label:'把酒言欢', eff:{精神力:4, 悟性:3}, txt:'故人依旧，江湖已远。一番长谈，心中块垒尽消。'}, {label:'赠予机缘', eff:{声望:8, 天命:2}, txt:'你念及旧情，指点故人后辈一二。'}]},
+  {band:3, q:'uncommon', minAge:60, name:'山巅独酌', text:'你携一壶酒登上山巅，对月独酌，俯瞰万家灯火。',
+   opts:[{label:'独酌至天明', eff:{精神力:3, 悟性:2}, txt:'山风拂面，酒入愁肠，心中却愈发清明。'}, {label:'静坐观云', eff:{悟性:3}, txt:'云卷云舒，宠辱不惊。'}]},
+  {band:3, q:'uncommon', minAge:62, name:'讲学论道', text:'有学府与宗门慕名相邀，请你开坛讲学，传道解惑。',
+   opts:[{label:'开坛三日', eff:{声望:8, 悟性:3}, txt:'你深入浅出，听者如痴如醉，桃李满天下。'}, {label:'携徒游历', eff:{悟性:3, 声望:4}, txt:'你带着几名后辈游历历练，教学相长。'}]},
+  {band:3, q:'uncommon', minAge:60, name:'狩猎历练', syn:{cat:'shou',catMult:1.15}, text:'你带队深入星斗大森林，狩猎强大魂兽，磨砺身手。', req:{lv:60},
+   opts:[{label:'猎取兽王', need:{attr:{力量:55}}, roll:{chance:0.45, extra:0.06, succ:{力量:6, 敏捷:4, 声望:6}, succText:'你亲手猎杀兽王，威震一方。', fail:{体质:-10}, failText:'兽王凶猛，你负伤而归。'}}, {label:'围猎魂兽', eff:{力量:3, 敏捷:2}, txt:'小有所获，身手不减当年。'}]},
   {band:3, q:'rare', minAge:60, name:'冲击极限', text:'寿元渐长，你想在最后的日子里冲击更高的境界。',
    opts:[{label:'放手一搏', need:{attr:{体质:30}}, roll:{chance:0.35, extra:0.05, succ:{悟性:8,力量:6}, succText:'你将毕生领悟融会贯通。', fail:{体质:-10}, failText:'气血亏空，大不如前。', death:0.06, deathText:'冲击境界时气血耗尽'}}, {label:'安心颐养', eff:{悟性:3}}]},
   {band:3, q:'epic', minAge:70, name:'最后的兽潮', once:true, syn:{cat:'shou',catMult:1.2}, text:'又一场百年不遇的兽潮袭来，你已垂垂老矣。', req:{ev:'shouchao1'},
@@ -6099,7 +6164,7 @@ let EVENTS = [
      {label:'接受家族安排', eff:{家境:3}, _marryMode:'arrange', _marryTxt:'你接受了家族的安排，门当户对。'},
      {label:'专注修炼', eff:{悟性:3}, _marryMode:'focus', _marryTxt:'你决定暂不考虑儿女情长，专注修炼。'}
    ]},
-  {band:2, q:'mythic', minAge:40, name:'神位传承', text:'神界降下神谕，一位神祇的传承之位在你面前显现。承接、拒绝以图自创，还是等待更高神位？', once:true, type:'god', req:{lv:[95,99], notShenDone:true}, w:0.01, // DL_RS_4.203：随机承接线再收窄（普通局神考线 <5%目标）
+  {band:2, q:'mythic', minAge:40, name:'神位传承', text:'神界降下神谕，一位神祇的传承之位在你面前显现。承接、拒绝以图自创，还是等待更高神位？', once:true, type:'god', req:{lv:[95,99], notShenDone:true}, w:0.005, // DL_RS_4.203/4.230/4.231：随机承接线（0.01→0.005，0 加成留极低非零概率 <5%）
    opts:[
      {label:'承接神位', need:{attr:{天命:30}}, eff:{天命:6}, _godMode:'accept', _godTxt:'你决定承接这份神位传承。'},
      {label:'拒绝以图自创', need:{attr:{悟性:40, 天命:25}}, eff:{悟性:4, 天命:3}, _godMode:'refuse', _godTxt:'你拒绝了这份传承，决心走出一条自创神位的道路。'},
@@ -6238,7 +6303,7 @@ let EVENTS = [
   /* 金 */
   {band:0, q:'legend', minAge:6, name:'神明一瞥', text:'恍惚之间，一道神明的目光似乎在你身上停留了一瞬。', once:true,
    opts:[{label:'铭记于心', need:{attr:{天命:25}}, eff:{天命:8, 精神力:6}, evSet:'shenyi'}, {label:'当作幻觉', eff:{悟性:4}}]},
-  {band:2, q:'mythic', minAge:52, name:'海神眷顾', text:'海神之光照拂而下，你与无边海洋产生了奇妙共鸣。', once:true,
+  {band:2, q:'mythic', minAge:52, name:'海神眷顾', text:'海神之光照拂而下，你与无边海洋产生了奇妙共鸣。', once:true, w:0.02, // DL_RS_4.230：显式权重（原未写默认偏大，0 加成海神线贡献过高）
    opts:[{label:'沐浴神光', need:{attr:{精神力:45}}, eff:{精神力:12, 体质:8, 天命:6}}, {label:'静观其变', eff:{悟性:8}}]},
   /* ==== 新增事件（DL_RS_4.7 扩充原著情节，平衡各品质/年龄段触发概率） ==== */
   /* 白 · 幼年 / 青年 */
@@ -6324,7 +6389,7 @@ let EVENTS = [
    opts:[{label:'服下金莲', eff:{体质:15, 悟性:12, 精神力:12}, fortune:{years:6, mult:5}, heroTxt:'九转金莲入腹，仙药之力在四肢百骸炸开，你仿佛听见了命运之门洞开的声音！'}, {label:'炼制成丹转售', eff:{金魂币:2000}}]},
   {band:1, q:'mythic', minAge:16, name:'神界灌顶', text:'神界之门短暂洞开，一缕神光直贯而下，灌入你体内——这是神祇亲自垂青！', once:true, w:0.05, req:{xianMin:1},
    opts:[{label:'承接神光', eff:{lv:12, 悟性:10, 天命:8}, fortune:{years:4, mult:4}, heroTxt:'神光灌顶，魂力暴涨，你与神界的距离，似乎只隔着一层薄纱。'}, {label:'惊退避让', eff:{悟性:5}}]},
-  {band:2, q:'legend', minAge:20, name:'海神之光', text:'海神岛的圣光穿透万里海浪，笼罩你身——你与海神产生了最深层的共鸣。', once:true, w:0.05, req:{lv:30},
+  {band:2, q:'legend', minAge:20, name:'海神之光', text:'海神岛的圣光穿透万里海浪，笼罩你身——你与海神产生了最深层的共鸣。', once:true, w:0.02, req:{lv:30}, // DL_RS_4.230：海神线入口收窄 0.05→0.02
    opts:[{label:'沐浴圣光', eff:{体质:14, 精神力:14, 天命:12}, fortune:{years:5, mult:4}, heroTxt:'海神之光洗炼神魂，你仿佛听见了来自万顷碧波的神谕。'}, {label:'凝望片刻', eff:{悟性:6}}]},
   {band:2, q:'legend', minAge:30, name:'杀戮之都·地狱路', _fieldOnSucc:'sha', _manual:true, _special:true, syn:{wq:'ding',wqMult:1.2}, text:'你在杀戮之都杀穿百场，直达地狱路入口——传说通过者将获杀戮神眷。', once:true, req:{lv:40, shaKills:100},
    opts:[{label:'闯地狱路', need:{attr:{力量:60}}, roll:{chance:0.5, extra:0.1, succ:{力量:20, 敏捷:16, 精神力:18, 天命:10}, succText:'你杀穿地狱路，杀神领域初成，杀意凝而不散！', fail:{体质:-25}, failText:'地狱路凶险，你重伤败退。', death:0.25, deathText:'陨落于地狱路'}, fortune:{years:4, mult:4}, heroTxt:'地狱路尽头，杀戮法则灌体——你已走上主角的通天路。'}, {label:'止步于此', eff:{悟性:5}}]},
@@ -6336,7 +6401,7 @@ let EVENTS = [
   {band:2, q:'epic', minAge:30, maxAge:70, name:'生死斗', text:'地下的黑角斗场里，生死状一签，胜者通吃，败者非死即残。', type:'duel', mode:'death', req:{lv:35, xianMin:1},
    opts:[{label:'押上性命应战', need:{attr:{体质:35}}, eff:{}, duelTxt:'生死对决·胜者通吃，败者非死即残'}, {label:'只是观战', eff:{}, duelTxt:'作壁上观'}]},
   /* ==== 事件链·海神岛试炼（DL_RS_4.101 多分支链）==== */
-  {band:2, q:'epic', minAge:30, maxAge:65, name:'海神岛漂流', text:'你乘船远航，被风暴卷至一座被迷雾笼罩的海岛——海神岛。岛上圣柱林立，一位蓝发海女祭司审视着你的到来。', once:true, chainId:'seashen', chainStart:true, step:'ss1', w:0.015, req:{lv:40, xianMin:1}, // DL_RS_4.203：普通局随机入海神线 0.18→0.03（0加成成神率<5%；唐三海神线由钩子10%承担）
+  {band:2, q:'epic', minAge:30, maxAge:65, name:'海神岛漂流', text:'你乘船远航，被风暴卷至一座被迷雾笼罩的海岛——海神岛。岛上圣柱林立，一位蓝发海女祭司审视着你的到来。', once:true, chainId:'seashen', chainStart:true, step:'ss1', w:0.008, req:{lv:40, xianMin:1}, // DL_RS_4.203：普通局随机入海神线 0.18→0.03（0加成成神率<5%；唐三海神线由钩子10%承担）
    opts:[{label:'上前行礼，接受考核', chainGoto:'sea0'}]},
    /* DL_RS_4.148 原著九考文案 · DL_RS_4.149 海神九考前置资格考核 */
    {band:2, q:'epic', name:'海神岛考核', text:'大祭司亲自主持海神九考资格考核——唯天赋卓绝、心性澄澈者，方有资格觐见海神之辉光，一试神考。', chainId:'seashen', step:'sea0',
